@@ -20,7 +20,7 @@ export function createServer(options={}){
  if(process.env.NODE_ENV==='production'&&!publicOrigin?.startsWith('https://'))throw new Error('Canlı ortamda HTTPS PUBLIC_ORIGIN zorunludur.');
  const api=createApi({...options,publicOrigin,trustProxy:options.trustProxy??process.env.TRUST_PROXY==='1'});
  const server=http.createServer(async(req,res)=>{
- const headers={'Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Permissions-Policy':'camera=(), microphone=(), geolocation=()','X-Frame-Options':'DENY','Cross-Origin-Opener-Policy':'same-origin'};
+ const headers={'Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Permissions-Policy':'camera=(), microphone=(), geolocation=()','X-Frame-Options':'DENY','Cross-Origin-Opener-Policy':'same-origin','Cross-Origin-Resource-Policy':'same-origin',...(publicOrigin?.startsWith('https://')?{'Strict-Transport-Security':'max-age=31536000'}:{})};
  const pathname=req.url.split('?')[0];
  if(await api.handle(req,res,pathname,headers))return;
  if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{...headers,Allow:'GET, HEAD'});return res.end('Method not allowed');}
@@ -33,4 +33,4 @@ export function createServer(options={}){
  server.on('close',()=>api.close());
  return server;
 }
-if(process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url){const port=Number(process.env.PORT||3000);createServer().listen(port,'0.0.0.0',()=>console.log(`Ordvis Creative listening on ${port}`));}
+if(process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url){const port=Number(process.env.PORT||3000);createServer().listen(port,process.env.HOST||(process.env.NODE_ENV==='production'?'0.0.0.0':'127.0.0.1'),()=>console.log(`Ordvis Creative listening on ${port}`));}

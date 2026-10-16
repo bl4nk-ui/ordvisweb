@@ -6,6 +6,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createServer} from '../server.mjs';
 import {Store} from '../lib/store.mjs';
+import {generateSecret,generateRecoveryCodes} from '../lib/mfa.mjs';
+const fixtureRecoveryCodes=generateRecoveryCodes();
 
 const origin = 'http://localhost:3000';
 const username = 'ordvis-admin';
@@ -54,6 +56,7 @@ async function fixture(t, options = {}) {
  const store = new Store({dataDir});
  try {
   await store.initializeAdmin(username, password);
+  store.enableMfa(generateSecret(),{counter:-1,recoveryCodes:fixtureRecoveryCodes,expectedVersion:store.getAdminState().authVersion});
  } finally {
   await store.close();
  }
@@ -66,10 +69,10 @@ async function fixture(t, options = {}) {
 }
 
 async function login(app) {
- const response = await app.request('/api/admin/login', {method: 'POST', body: {username, password}});
+ const response = await app.request('/api/admin/login', {method: 'POST', body: {username, password,code:fixtureRecoveryCodes[0]}});
  assert.equal(response.status, 200, await response.clone().text());
  const setCookie = response.headers.get('set-cookie');
- assert.ok(setCookie?.startsWith('ordvis_session='), 'login sets the session cookie');
+ assert.match(setCookie,/^(?:__Host-)?ordvis_session=/,'login sets the session cookie');
  assert.match(setCookie, /;\s*HttpOnly(?:;|$)/i);
  assert.match(setCookie, /;\s*SameSite=(?:Strict|Lax)(?:;|$)/i);
  assert.match(setCookie, /;\s*Path=\/(?:;|$)/i);
@@ -285,7 +288,7 @@ test('bodies larger than 16 KiB are rejected without crashing the server or crea
 
 test('HTTPS configuration makes admin session and logout cookies Secure', async t => {
  const app = await fixture(t, {publicOrigin: 'https://ordvis.example', secureCookies: undefined});
- const response = await app.request('/api/admin/login', {method: 'POST', body: {username, password}});
+ const response = await app.request('/api/admin/login', {method: 'POST', body: {username, password,code:fixtureRecoveryCodes[0]}});
  assert.equal(response.status, 200);
  const setCookie = response.headers.get('set-cookie');
  assert.match(setCookie, /;\s*Secure(?:;|$)/i);
@@ -304,7 +307,9 @@ test('concurrent failed logins cannot bypass the five-attempt rate limit', async
  const responses = await Promise.all(Array.from({length: 12}, (_, index) => app.request('/api/admin/login', {
   method: 'POST', body: {username, password: `concurrent-wrong-${index}`},
  })));
- assert.equal(responses.filter(response => response.status === 401).length, 5);
+ assert.equal(responses.filter(response => [401,503].includes(response.status)).length, 5);
+ assert.ok(responses.filter(response => response.status === 401).length<=2,'concurrent scrypt work is bounded');
+ assert.ok(responses.some(response=>response.status===503),'excess concurrent hashing is refused');
  assert.equal(responses.filter(response => response.status === 429).length, 7);
  for (const response of responses) assert.equal(response.headers.get('set-cookie'), null);
  const followup = await app.request('/api/admin/login', {method: 'POST', body: {username, password: 'wrong-again'}});
@@ -314,7 +319,7 @@ test('concurrent failed logins cannot bypass the five-attempt rate limit', async
 test('database files and backend source are never exposed as public assets', async t => {
  const app = await fixture(t);
  for (const path of [
-  '/.data/ordvis.sqlite', '/.data/ordvis.sqlite-wal', '/.data/ordvis.sqlite-shm',
+  '/.data/mfa.key', '/.data/ordvis.sqlite', '/.data/ordvis.sqlite-wal', '/.data/ordvis.sqlite-shm',
   '/lib/store.mjs', '/lib/api.mjs', '/test/inbox.test.mjs',
  ]) {
   const response = await app.request(path);

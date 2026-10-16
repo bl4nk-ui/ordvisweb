@@ -12,6 +12,13 @@
   let loading = false;
   let authGeneration = 0;
   let leadCounts = null;
+  let mfaEnabled = false;
+  let mfaRequired = true;
+  let backupCodes = [];
+  let currentSection = 'requests';
+  let securityLoading = false;
+  let changingMfaDevice = false;
+  let screenLockTimer;
   const drafts = new Map();
 
   class ApiError extends Error {
@@ -35,6 +42,7 @@
     }
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new ApiError(typeof result.error === 'string' ? result.error : 'İşlem tamamlanamadı. Tekrar dene.', response.status, result.code);
+    if (authenticated) resetScreenLock();
     return result;
   }
 
@@ -63,16 +71,21 @@
   }
 
   function showLogin(note = '', configured = true) {
+    window.clearTimeout(screenLockTimer);
     authGeneration += 1;
     authenticated = false;
     csrfToken = '';
     leads = [];
     leadCounts = null;
     selectedId = null;
+    mfaEnabled = false;
+    mfaRequired = true;
+    clearSecuritySecrets();
     drafts.clear();
     $('leads-list').replaceChildren();
     $('detail-content').replaceChildren();
     $('password').value = '';
+    $('login-code').value = '';
     $('search').value = '';
     $('status-filter').value = 'all';
     $('initial-state').hidden = true;
@@ -82,6 +95,7 @@
     $('login-button').disabled = !configured;
     $('username').disabled = !configured;
     $('password').disabled = !configured;
+    $('login-code').disabled = !configured;
     message($('login-message'), note);
   }
 
@@ -93,15 +107,22 @@
     authGeneration += 1;
     csrfToken = session.csrfToken;
     authenticated = true;
+    mfaEnabled = session.mfaEnabled === true;
+    mfaRequired = session.mfaRequired === true || !mfaEnabled;
+    resetScreenLock();
+    clearSecuritySecrets();
     const username = typeof session.username === 'string' ? session.username : 'Yönetici';
     $('user-name').textContent = username;
     $('user-initial').textContent = username.slice(0, 1).toLocaleUpperCase('tr-TR');
     $('password').value = '';
+    $('login-code').value = '';
     $('initial-state').hidden = true;
     $('login-view').hidden = true;
     $('dashboard-view').hidden = false;
     $('today').textContent = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Istanbul' }).format(new Date());
-    await refreshLeads();
+    updateSecurityNavigation();
+    if (mfaRequired) await showSecurity(false);
+    else await showRequests();
   }
 
   function handleAuthError(error) {
@@ -110,6 +131,234 @@
     $('username').focus();
     return true;
   }
+
+  function resetScreenLock() {
+    window.clearTimeout(screenLockTimer);
+    const generation = authGeneration;
+    screenLockTimer = window.setTimeout(() => {
+      if (authenticated && generation === authGeneration) showLogin('Güvenliğin için panel kilitlendi. Devam etmek için tekrar giriş yap.');
+    }, (mfaRequired ? 10 : 15) * 60 * 1000);
+  }
+
+  function clearSecuritySecrets() {
+    backupCodes = [];
+    changingMfaDevice = false;
+    for (const id of ['setup-password', 'setup-existing-code', 'setup-code', 'mfa-secret', 'recovery-password', 'recovery-code']) $(id).value = '';
+    $('backup-codes').replaceChildren();
+    $('backup-panel').hidden = true;
+    $('mfa-secret-step').hidden = true;
+    $('mfa-setup-form').hidden = false;
+    $('recovery-details').open = false;
+    message($('copy-message'));
+    message($('security-message'));
+    message($('assistant-message'));
+  }
+
+  function updateSecurityNavigation() {
+    const restricted = mfaRequired || !mfaEnabled;
+    $('requests-nav').disabled = restricted || backupCodes.length > 0;
+    $('mobile-requests-nav').disabled = restricted || backupCodes.length > 0;
+    $('requests-nav').title = restricted ? 'Önce iki aşamalı doğrulamayı tamamla' : '';
+    $('mfa-required-notice').hidden = !restricted;
+    $('assistant-card').hidden = restricted || backupCodes.length > 0;
+    $('mfa-setup-panel').hidden = (mfaEnabled && !changingMfaDevice) || backupCodes.length > 0;
+    $('mfa-enabled-panel').hidden = !mfaEnabled || changingMfaDevice || backupCodes.length > 0;
+    $('setup-existing-code-field').hidden = !changingMfaDevice;
+    $('setup-existing-code').required = changingMfaDevice;
+    $('cancel-mfa-change').hidden = !changingMfaDevice;
+    $('security-badge').textContent = mfaEnabled ? '◈ İki aşamalı koruma etkin' : '◈ Kurulumu tamamla';
+    $('security-badge').classList.toggle('is-enabled', mfaEnabled);
+    $('requests-nav').classList.toggle('active', currentSection === 'requests');
+    $('security-nav').classList.toggle('active', currentSection === 'security');
+    for (const [id, section] of [['requests-nav', 'requests'], ['mobile-requests-nav', 'requests'], ['security-nav', 'security'], ['mobile-security-nav', 'security']]) {
+      if (currentSection === section) $(id).setAttribute('aria-current', 'page');
+      else $(id).removeAttribute('aria-current');
+    }
+  }
+
+  async function showRequests() {
+    if (!authenticated || mfaRequired || !mfaEnabled || backupCodes.length) return;
+    currentSection = 'requests';
+    $('requests').hidden = false;
+    $('security-section').hidden = true;
+    updateSecurityNavigation();
+    await refreshLeads();
+  }
+
+  async function showSecurity(focus = true) {
+    if (!authenticated) return;
+    currentSection = 'security';
+    $('requests').hidden = true;
+    $('security-section').hidden = false;
+    updateSecurityNavigation();
+    if (focus) $('security-title').focus({ preventScroll: true });
+    if (securityLoading) return;
+    const generation = authGeneration;
+    securityLoading = true;
+    try {
+      const result = await api('/api/admin/security');
+      if (generation !== authGeneration) return;
+      if (typeof result.mfaEnabled !== 'boolean') throw new ApiError('Güvenlik durumu okunamadı. Sayfayı yenileyip tekrar dene.', 0);
+      mfaEnabled = result.mfaEnabled;
+      mfaRequired = !mfaEnabled;
+      $('recovery-count').textContent = Number.isSafeInteger(result.recoveryCodesRemaining) ? String(result.recoveryCodesRemaining) : '—';
+      updateSecurityNavigation();
+    } catch (error) {
+      if (generation !== authGeneration || handleAuthError(error)) return;
+      message($('security-message'), error.message);
+    } finally { securityLoading = false; }
+  }
+
+  function securityError(error) {
+    if (error.status === 401 && ['INVALID_CREDENTIALS', 'MFA_INVALID', 'AUTH_FAILED', 'INVALID_PASSWORD'].includes(error.code)) {
+      message($('security-message'), error.message);
+      return;
+    }
+    if (!handleAuthError(error)) message($('security-message'), error.message);
+  }
+
+  function downloadFile(contents, name, type) {
+    const url = URL.createObjectURL(new Blob([contents], { type }));
+    const link = el('a');
+    link.href = url;
+    link.download = name;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function showBackupCodes(result) {
+    if (!Array.isArray(result.recoveryCodes) || result.recoveryCodes.length === 0 || !result.recoveryCodes.every((code) => typeof code === 'string' && code.length <= 64)) {
+      throw new ApiError('Kurtarma kodları alınamadı. Güvenlik bölümünden yeni kodlar oluştur.', 0);
+    }
+    backupCodes = result.recoveryCodes.slice();
+    $('recovery-count').textContent = String(backupCodes.length);
+    if (typeof result.csrfToken === 'string' && result.csrfToken) csrfToken = result.csrfToken;
+    $('backup-codes').replaceChildren(...backupCodes.map((code) => el('li', '', code)));
+    $('backup-panel').hidden = false;
+    $('mfa-secret').value = '';
+    $('setup-code').value = '';
+    $('mfa-secret-step').hidden = true;
+    $('recovery-details').open = false;
+    updateSecurityNavigation();
+    $('backup-title').focus();
+  }
+
+  $('mfa-setup-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if ($('mfa-setup-button').disabled) return;
+    const generation = authGeneration;
+    $('mfa-setup-button').disabled = true;
+    message($('security-message'));
+    try {
+      const result = await api('/api/admin/mfa/setup', { method: 'POST', csrf: true, body: { password: $('setup-password').value, ...(changingMfaDevice ? { code: $('setup-existing-code').value.trim() } : {}) } });
+      if (generation !== authGeneration) return;
+      if (typeof result.secret !== 'string' || !/^[A-Z2-7]{16,128}$/.test(result.secret)) throw new ApiError('Kurulum anahtarı okunamadı. Tekrar dene.', 0);
+      $('mfa-secret').value = result.secret;
+      $('mfa-setup-form').hidden = true;
+      $('mfa-secret-step').hidden = false;
+      $('setup-code').focus();
+    } catch (error) { if (generation === authGeneration) securityError(error); }
+    finally { $('setup-password').value = ''; $('setup-existing-code').value = ''; $('mfa-setup-button').disabled = false; }
+  });
+
+  $('change-mfa-device').addEventListener('click', () => {
+    clearSecuritySecrets();
+    changingMfaDevice = true;
+    updateSecurityNavigation();
+    $('setup-password').focus();
+  });
+
+  $('cancel-mfa-change').addEventListener('click', () => {
+    clearSecuritySecrets();
+    updateSecurityNavigation();
+    $('change-mfa-device').focus();
+  });
+
+  $('restart-mfa-setup').addEventListener('click', () => {
+    $('mfa-secret').value = '';
+    $('setup-code').value = '';
+    $('mfa-secret-step').hidden = true;
+    $('mfa-setup-form').hidden = false;
+    message($('copy-message'));
+    message($('security-message'));
+    $('setup-password').focus();
+  });
+
+  $('copy-secret').addEventListener('click', async () => {
+    if (!$('mfa-secret').value) return;
+    try {
+      await navigator.clipboard.writeText($('mfa-secret').value);
+      message($('copy-message'), 'Kopyalandı. Authenticator uygulamana yapıştır.', 'success');
+    } catch {
+      $('mfa-secret').focus();
+      $('mfa-secret').select();
+      message($('copy-message'), 'Anahtarı seçtik. Ctrl+C veya cihazının kopyalama menüsünü kullan.', 'success');
+    }
+  });
+
+  $('mfa-enable-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if ($('mfa-enable-button').disabled) return;
+    const generation = authGeneration;
+    $('mfa-enable-button').disabled = true;
+    message($('security-message'));
+    try {
+      const result = await api('/api/admin/mfa/enable', { method: 'POST', csrf: true, body: { code: $('setup-code').value.trim() } });
+      if (generation !== authGeneration) return;
+      mfaEnabled = true;
+      mfaRequired = false;
+      resetScreenLock();
+      showBackupCodes(result);
+      message($('security-message'), 'İki aşamalı doğrulama etkin. Şimdi kurtarma kodlarını güvenle sakla.', 'success');
+    } catch (error) { if (generation === authGeneration) securityError(error); }
+    finally { $('setup-code').value = ''; $('mfa-enable-button').disabled = false; }
+  });
+
+  $('recovery-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if ($('recovery-button').disabled) return;
+    const generation = authGeneration;
+    $('recovery-button').disabled = true;
+    message($('security-message'));
+    try {
+      const result = await api('/api/admin/mfa/recovery-codes', { method: 'POST', csrf: true, body: { password: $('recovery-password').value, code: $('recovery-code').value.trim() } });
+      if (generation !== authGeneration) return;
+      showBackupCodes(result);
+      message($('security-message'), 'Eski kurtarma kodları geçersiz oldu. Yeni kodlarını güvenle sakla.', 'success');
+    } catch (error) { if (generation === authGeneration) securityError(error); }
+    finally { $('recovery-password').value = ''; $('recovery-code').value = ''; $('recovery-button').disabled = false; }
+  });
+
+  $('download-codes').addEventListener('click', () => {
+    if (!backupCodes.length) return;
+    downloadFile(`Ordvis Creative — tek kullanımlık kurtarma kodları\n\nHer kod yalnızca bir kez kullanılabilir. Kimseyle paylaşma.\n\n${backupCodes.join('\n')}\n`, 'ordvis-kurtarma-kodlari.txt', 'text/plain;charset=utf-8');
+  });
+
+  $('confirm-codes').addEventListener('click', async () => {
+    clearSecuritySecrets();
+    updateSecurityNavigation();
+    message($('security-message'), 'Hesabın hazır. Artık taleplerini güvenle yönetebilirsin.', 'success');
+    await showSecurity(false);
+  });
+
+  $('assistant-export-button').addEventListener('click', async () => {
+    if (!authenticated || mfaRequired || !mfaEnabled || $('assistant-export-button').disabled) return;
+    const generation = authGeneration;
+    $('assistant-export-button').disabled = true;
+    message($('assistant-message'));
+    try {
+      const result = await api('/api/admin/assistant-export');
+      if (generation !== authGeneration) return;
+      const date = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date());
+      downloadFile(JSON.stringify(result, null, 2), `ordvis-asistan-ozeti-${date}.json`, 'application/json;charset=utf-8');
+      message($('assistant-message'), 'Özet indirildi. İçeriğini gözden geçir; paylaşmak istediğinde dosyayı bu sohbete ekle.', 'success');
+    } catch (error) {
+      if (generation !== authGeneration || handleAuthError(error)) return;
+      message($('assistant-message'), error.message);
+    } finally { $('assistant-export-button').disabled = false; }
+  });
 
   function renderCounts(counts = leadCounts) {
     const fallback = {
@@ -128,7 +377,7 @@
   }
 
   async function refreshLeads() {
-    if (loading || !authenticated) return;
+    if (loading || !authenticated || mfaRequired || !mfaEnabled) return;
     const generation = authGeneration;
     loading = true;
     $('refresh-button').disabled = true;
@@ -359,14 +608,18 @@
     $('login-form').setAttribute('aria-busy', 'true');
     message($('login-message'));
     try {
-      const session = await api('/api/admin/login', { method: 'POST', body: { username, password } });
+      const code = $('login-code').value.trim();
+      const session = await api('/api/admin/login', { method: 'POST', body: { username, password, ...(code ? { code } : {}) } });
       await showDashboard(session);
     } catch (error) {
-      $('password').value = '';
+      if (error.code !== 'MFA_CODE_REQUIRED') $('password').value = '';
       if (error.code === 'ADMIN_NOT_CONFIGURED') showLogin(error.message, false);
       else {
         message($('login-message'), error.message);
-        $('password').focus();
+        if (['MFA_CODE_REQUIRED', 'MFA_INVALID'].includes(error.code)) {
+          $('login-code').value = '';
+          $('login-code').focus();
+        } else $('password').focus();
       }
     } finally {
       $('login-button').disabled = !$('setup-help').hidden;
@@ -377,21 +630,28 @@
   async function logout() {
     $('logout-button').disabled = true;
     $('mobile-logout').disabled = true;
+    $('security-mobile-logout').disabled = true;
     try {
       await api('/api/admin/logout', { method: 'POST', body: {}, csrf: true });
       showLogin();
       message($('login-message'), 'Güvenli çıkış yapıldı.', 'success');
       $('username').focus();
     } catch (error) {
-      if (!handleAuthError(error)) message($('dashboard-message'), error.message);
+      if (!handleAuthError(error)) message($(currentSection === 'security' ? 'security-message' : 'dashboard-message'), error.message);
     } finally {
       $('logout-button').disabled = false;
       $('mobile-logout').disabled = false;
+      $('security-mobile-logout').disabled = false;
     }
   }
 
   $('logout-button').addEventListener('click', logout);
   $('mobile-logout').addEventListener('click', logout);
+  $('security-mobile-logout').addEventListener('click', logout);
+  $('requests-nav').addEventListener('click', showRequests);
+  $('mobile-requests-nav').addEventListener('click', showRequests);
+  $('security-nav').addEventListener('click', () => showSecurity());
+  $('mobile-security-nav').addEventListener('click', () => showSecurity());
   $('refresh-button').addEventListener('click', refreshLeads);
   $('search').addEventListener('input', renderList);
   $('status-filter').addEventListener('change', renderList);
@@ -400,7 +660,7 @@
     renderList();
   }));
   window.addEventListener('beforeunload', (event) => {
-    if (!drafts.size) return;
+    if (!drafts.size && !backupCodes.length) return;
     event.preventDefault();
     event.returnValue = '';
   });
