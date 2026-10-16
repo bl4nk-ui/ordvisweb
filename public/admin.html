@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="theme-color" content="#101112">
+  <title>Stüdyo paneli — Ordvis Creative</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/admin.css">
+  <script src="/admin.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">İçeriğe geç</a>
+  <div id="initial-state" class="initial-state" role="status"><span class="loading-dot" aria-hidden="true"></span>Stüdyo hazırlanıyor…</div>
+
+  <main id="main">
+    <section id="login-view" class="login-view" hidden aria-labelledby="login-title">
+      <div class="login-story" aria-hidden="true">
+        <div class="wordmark">ordvis<span>CREATIVE STUDIO</span></div>
+        <span class="eyebrow">STÜDYO KONTROL MERKEZİ</span>
+        <h2>İyi fikirler.<br><em>Yeni başlangıçlar.</em></h2>
+        <p>Bir sonraki hikâyenin ilk mesajı burada.</p>
+        <div class="login-orbit"><span>↗</span></div>
+        <span class="login-footnote">FARKLI AÇILAR. TEK VİZYON.</span>
+      </div>
+      <div class="login-content">
+        <a href="/" class="back-link">← Siteye dön</a>
+        <div class="login-card">
+          <span class="eyebrow">ORDVIS / YÖNETİM</span>
+          <h1 id="login-title">Stüdyoya<br>hoş geldin.</h1>
+          <p class="muted">Proje taleplerini takip et, ilk teması kur,<br>yeni işlere yer aç.</p>
+          <form id="login-form">
+            <label for="username">Kullanıcı adı</label>
+            <input id="username" name="username" autocomplete="username" required maxlength="80" autocapitalize="none" spellcheck="false">
+            <label for="password">Şifre</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128">
+            <button id="login-button" class="button primary" type="submit">Panele giriş yap <span aria-hidden="true">↗</span></button>
+          </form>
+          <p id="login-message" class="message" role="status" aria-live="polite"></p>
+          <div id="setup-help" class="setup-help" hidden><strong>İlk kurulum gerekiyor</strong><p>Projeyi çalıştırdığın bilgisayarda terminalden <code>npm run admin:setup</code> komutunu çalıştır ve sunucuyu yeniden başlat. Giriş bilgilerini bu ekrandan oluşturamazsın.</p></div>
+          <p class="login-security"><span aria-hidden="true">◈</span> Yalnızca yetkili stüdyo ekibi için.</p>
+        </div>
+      </div>
+    </section>
+
+    <div id="dashboard-view" class="dashboard" hidden>
+      <aside class="sidebar" aria-label="Stüdyo menüsü">
+        <a class="wordmark" href="/" aria-label="Ordvis Creative ana sayfa">ordvis<span>CREATIVE STUDIO</span></a>
+        <div class="sidebar-section">ÇALIŞMA ALANI</div>
+        <a class="sidebar-item active" href="#requests" aria-current="page"><span aria-hidden="true">▤</span> Proje talepleri <span id="sidebar-count" class="sidebar-count">0</span></a>
+        <a class="sidebar-item" href="/"><span aria-hidden="true">↗</span> Siteyi görüntüle</a>
+        <div class="sidebar-bottom"><div class="studio-status"><span aria-hidden="true"></span> Stüdyo masası</div><p>İlk mesajdan<br>iyi bir işe.</p><div class="sidebar-user"><span id="user-initial" class="user-avatar" aria-hidden="true">O</span><div><strong id="user-name">Yönetici</strong><span>Ordvis Creative</span></div></div><button id="logout-button" class="logout-button" type="button">Güvenli çıkış <span aria-hidden="true">↗</span></button></div>
+      </aside>
+
+      <div class="workspace">
+        <header class="dashboard-header"><div class="breadcrumb">ORDVIS <span aria-hidden="true">/</span> STÜDYO PANELİ</div><a href="/" class="mobile-site-link">Siteye dön ↗</a><span id="today" class="today"></span></header>
+        <section id="requests" class="requests-section" aria-labelledby="dashboard-title">
+          <div class="page-heading"><div><span class="eyebrow">YENİ BİR HİKÂYENİN İLK ADIMI</span><h1 id="dashboard-title">Gelen <em>fikirler.</em></h1><p>Her talep, birlikte üretmek için yeni bir fırsat.</p></div><button id="refresh-button" class="button secondary" type="button"><span id="refresh-icon" aria-hidden="true">↻</span> Talepleri yenile</button></div>
+          <div class="stats" aria-label="Talep özeti">
+            <button class="stat-card" type="button" data-stat="all" aria-pressed="true"><span class="stat-label">TOPLAM TALEP <span aria-hidden="true">↗</span></span><strong id="count-total">0</strong><span class="stat-description">Tüm başlangıçlar</span></button>
+            <button class="stat-card accent-card" type="button" data-stat="new" aria-pressed="false"><span class="stat-label">YENİ <span class="status-dot" aria-hidden="true"></span></span><strong id="count-new">0</strong><span class="stat-description">İlk temasını bekliyor</span></button>
+            <button class="stat-card" type="button" data-stat="contacted" aria-pressed="false"><span class="stat-label">GÖRÜŞÜLÜYOR <span aria-hidden="true">↗</span></span><strong id="count-contacted">0</strong><span class="stat-description">Sohbet başladı</span></button>
+            <button class="stat-card" type="button" data-stat="archived" aria-pressed="false"><span class="stat-label">ARŞİV <span aria-hidden="true">↗</span></span><strong id="count-archived">0</strong><span class="stat-description">Kayıt altında</span></button>
+          </div>
+          <p id="dashboard-message" class="message dashboard-message" role="status" aria-live="polite"></p>
+          <div class="inbox-layout">
+            <section class="inbox" aria-labelledby="inbox-title"><div class="inbox-heading"><h2 id="inbox-title">Proje talepleri <span id="visible-count" class="small-count">0</span></h2><span class="live-label"><span aria-hidden="true"></span> GELEN KUTUSU</span></div><div class="inbox-tools"><label class="search-field"><span aria-hidden="true">⌕</span><span class="sr-only">Taleplerde ara</span><input id="search" type="search" placeholder="Marka, kişi, e-posta veya telefon ara…" autocomplete="off" maxlength="200"></label><label class="filter-field"><span class="sr-only">Talep durumu</span><select id="status-filter"><option value="all">Tüm durumlar</option><option value="new">Yeni</option><option value="contacted">Görüşülüyor</option><option value="archived">Arşiv</option></select></label></div><div id="list-state" class="list-state" role="status"></div><ul id="leads-list" class="leads-list" aria-label="Proje talepleri"></ul><div class="inbox-footer"><span>Talepler yalnızca bu panelde görünür.</span><span id="updated-time"></span></div></section>
+
+            <section id="detail-panel" class="detail-panel" aria-labelledby="detail-heading" aria-live="polite"><div id="detail-empty" class="detail-empty"><span class="detail-empty-icon" aria-hidden="true">↗</span><span class="eyebrow">HER İYİ İŞ BİR FİKİRLE BAŞLAR</span><h2 id="detail-heading">Bir talebe<br>yakından bak.</h2><p>Soldan bir proje seç.<br>Detaylar, iletişim bilgileri ve<br>stüdyo notların burada.</p></div><div id="detail-content" hidden></div></section>
+          </div>
+          <footer class="workspace-footer"><span>ORDVIS CREATIVE / STÜDYO PANELİ</span><span>Bir sonraki iyi işe.</span><button id="mobile-logout" class="mobile-logout" type="button">Çıkış yap ↗</button></footer>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -124,8 +124,9 @@ test('CLI starts from a path containing spaces and Turkish characters', {timeout
  let child;
  try{
   await cp(new URL('../server.mjs',import.meta.url),join(dir,'server.mjs'));
+  await cp(new URL('../lib',import.meta.url),join(dir,'lib'),{recursive:true});
   await cp(new URL('../public',import.meta.url),join(dir,'public'),{recursive:true});
-  child=spawn(process.execPath,[join(dir,'server.mjs')],{env:{...process.env,PORT:'0'},stdio:['ignore','pipe','pipe']});
+  child=spawn(process.execPath,[join(dir,'server.mjs')],{cwd:dir,env:{...process.env,PORT:'0'},stdio:['ignore','pipe','pipe']});
   const output=await Promise.race([once(child.stdout,'data').then(([data])=>data.toString()),once(child,'exit').then(([code])=>{throw new Error(`CLI exited before listening: ${code}`);})]);
   assert.match(output,/Ordvis Creative listening on 0/);
  }finally{

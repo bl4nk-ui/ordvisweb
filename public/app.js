@@ -10,26 +10,24 @@ const form=document.querySelector('#brief-form');
 if(form){
  const select=form.querySelector('#plan');const requested=new URLSearchParams(location.search).get('paket');
  if([...select.options].some(option=>option.value===requested))select.value=requested;
- form.addEventListener('submit',event=>{
-  event.preventDefault();const data=new FormData(form);
-  const text=`Merhaba Ordvis Creative!\n\nMarka / proje: ${String(data.get('brand')).trim()}\nİlgilendiğim hizmet: ${data.get('plan')}\n\n${String(data.get('brief')).trim()}`;
-  const link=document.createElement('a');link.href='https://wa.me/905307168808?text='+encodeURIComponent(text);link.target='_blank';link.rel='noopener noreferrer';link.click();
-  document.querySelector('#form-status').textContent='WhatsApp bağlantısı açıldı. Mesajınız, siz gönderene kadar ajansa iletilmez.';
+ const status=document.querySelector('#form-status');const submit=form.querySelector('[type="submit"]');const label=submit.querySelector('.submit-label');
+ let requestId=crypto.randomUUID();let sending=false;
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();if(sending)return;
+  sending=true;submit.disabled=true;form.setAttribute('aria-busy','true');label.textContent='Talebiniz gönderiliyor…';status.textContent='';
+  const data=new FormData(form);const body=Object.fromEntries(data);body.consent=data.get('consent')==='on';body.requestId=requestId;
+  try{
+   const response=await fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
+   const result=await response.json();if(!response.ok)throw new Error(result.error||'Talebiniz gönderilemedi.');
+   status.textContent=result.message;form.dataset.state='success';form.reset();requestId=crypto.randomUUID();
+  }catch(error){form.dataset.state='error';status.textContent=error.name==='TimeoutError'?'Yanıt gecikti. Bağlantınızı kontrol edip tekrar deneyin.':error.message==='Failed to fetch'?'Bağlantı kurulamadı. Lütfen tekrar deneyin veya bize e-posta ile ulaşın.':error.message;}
+  finally{sending=false;submit.disabled=false;form.removeAttribute('aria-busy');label.textContent='Projeyi konuşmaya başlayalım';}
  });
 }
 const privacy=document.querySelector('#privacy');
-document.querySelector('#privacy-open').addEventListener('click',()=>privacy.showModal());
+document.querySelectorAll('#privacy-open,[data-privacy]').forEach(button=>button.addEventListener('click',()=>privacy.showModal()));
 document.querySelector('#privacy-close').addEventListener('click',()=>privacy.close());
 privacy.addEventListener('click',event=>{if(event.target===privacy){const r=privacy.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)privacy.close();}});
-const flight=document.querySelector('.drone-flight');const replay=document.querySelector('#replay-flight');
-if(flight){
- const pause=document.querySelector('#pause-flight');const stage=document.querySelector('.drone-stage');
- function pauseFlight(value){stage.classList.toggle('is-paused',value);pause.setAttribute('aria-pressed',String(value));pause.textContent=value?'Hareketi sürdür':'Hareketi duraklat';}
- const updateMotion=()=>{replay.disabled=reducedMotion.matches;pause.disabled=reducedMotion.matches;replay.textContent=reducedMotion.matches?'Hareket azaltma açık':'Uçuşu tekrar izle ↻';};
- updateMotion();reducedMotion.addEventListener('change',updateMotion);
- pause.addEventListener('click',()=>pauseFlight(!stage.classList.contains('is-paused')));
- replay.addEventListener('click',()=>{pauseFlight(false);flight.getAnimations().forEach(animation=>{animation.cancel();animation.play();});});
-}
 const preview=document.querySelector('.editor-preview');
 if(preview){
  const labels={raw:'01 / HAM GÖRÜNTÜ',grade:'02 / RENK DÜZENLEME',vfx:'03 / EFEKT & MOTION'};

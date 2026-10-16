@@ -1,1 +1,21 @@
-<section class="contact section" id="baslayalim"><div><div class="section-label"><span class="dot"></span> YENİ BİR HİKÂYEYE HAZIR MISINIZ?</div><h2>Birlikte<br><span>iz bırakalım.</span><span class="contact-arrow">↗</span></h2><p>İlk adım küçük. Etkisi büyük.<br>İhtiyacınızı seçin, projenizi birlikte konuşalım.</p><p class="contact-links"><a href="tel:+905307168808">0530 716 88 08</a><br><a href="mailto:ordviscreative@gmail.com">ordviscreative@gmail.com</a></p></div><form id="brief-form"><label for="brand">Markanız / proje adınız</label><input id="brand" name="brand" placeholder="Hangi marka için üretiyoruz?" maxlength="100" required autocomplete="organization"><label for="plan">Nereden başlayalım?</label><select id="plan" name="plan"><option>Birlikte karar verelim</option><option>Vitrin</option><option>Büyüme</option><option>Prestij</option><option>Tek seferlik proje</option></select><label for="brief">Aklınızdaki proje</label><textarea id="brief" name="brief" rows="3" maxlength="2000" placeholder="Hedefinizi ve ihtiyacınızı kısaca anlatın…" required></textarea><button class="button light" type="submit">WhatsApp’ta konuşalım <span>↗</span></button><p class="form-note">Bilgileriniz bu sitede kaydedilmez. Buton, proje bilgilerinizi WhatsApp’a aktarır; mesajı kontrol edip kendiniz gönderirsiniz. WhatsApp’ın veri işleme koşulları geçerlidir.</p><p id="form-status" role="status"></p></form></section>
+<section class="contact section" id="baslayalim">
+ <div><div class="section-label"><span class="dot"></span> MARKANIZIN BİR SONRAKİ ADIMI</div>
+  <h2>İyi bir fikir.<br><span>Güçlü bir iz.</span><span class="contact-arrow" aria-hidden="true">↗</span></h2>
+  <p>Ne yapmak istediğinizi anlatın. İhtiyacınıza uygun kapsamı,<br>üretim planını ve bütçeyi birlikte netleştirelim.</p>
+  <div class="contact-promises"><span>01 / İhtiyacınıza özel yaklaşım</span><span>02 / Baştan net kapsam ve fiyat</span><span>03 / Tek ekip, bütünlüklü üretim</span></div>
+  <p class="contact-links"><a href="tel:+905307168808">0530 716 88 08</a><br><a href="mailto:ordviscreative@gmail.com">ordviscreative@gmail.com</a></p>
+ </div>
+ <form id="brief-form" method="post" action="/api/leads">
+  <div class="form-heading"><span>PROJENİZİ TANIYALIM</span><p>İyi bir başlangıç için birkaç detay yeterli.</p></div>
+  <label for="name">Adınız soyadınız <span aria-hidden="true">*</span></label><input id="name" name="name" placeholder="Size nasıl hitap edelim?" maxlength="100" required autocomplete="name">
+  <label for="brand">Markanız / proje adınız <span aria-hidden="true">*</span></label><input id="brand" name="brand" placeholder="Hangi marka için üretiyoruz?" maxlength="100" required autocomplete="organization">
+  <div class="form-row"><div><label for="email">E-posta adresiniz <span aria-hidden="true">*</span></label><input id="email" name="email" type="email" placeholder="ornek@markaniz.com" maxlength="254" required autocomplete="email"></div><div><label for="phone">Telefon <span class="optional">(isteğe bağlı)</span></label><input id="phone" name="phone" type="tel" placeholder="05xx xxx xx xx" maxlength="40" autocomplete="tel"></div></div>
+  <label for="plan">Nereden başlayalım?</label><select id="plan" name="plan"><option>Birlikte karar verelim</option><option>Vitrin</option><option>Büyüme</option><option>Prestij</option><option>Tek seferlik proje</option></select>
+  <label for="brief">Aklınızdaki proje <span aria-hidden="true">*</span></label><textarea id="brief" name="brief" rows="3" maxlength="2000" placeholder="Hedefiniz, ihtiyacınız ve varsa düşündüğünüz takvim…" required></textarea>
+  <div class="form-honeypot" aria-hidden="true"><label for="website">Bu alanı boş bırakın</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+  <div class="consent-row"><input type="checkbox" id="consent" name="consent" required><label for="consent">İletişim bilgilerimin proje talebime dönüş yapılması amacıyla işlenmesine ilişkin <button type="button" class="privacy-link" data-privacy>aydınlatma metnini</button> okudum.</label></div>
+  <button class="button accent" type="submit"><span class="submit-label">Projeyi konuşmaya başlayalım</span><span aria-hidden="true">↗</span></button>
+  <p class="form-note">Talebiniz doğrudan Ordvis ekibine ulaşır. Bu form bir satın alma veya ödeme işlemi başlatmaz.</p>
+  <p id="form-status" role="status" aria-live="polite"></p><noscript><p>Talep göndermek için JavaScript’i etkinleştirin veya e-posta adresimizden bize ulaşın.</p></noscript>
+ </form>
+</section>
