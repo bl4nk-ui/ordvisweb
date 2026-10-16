@@ -1,1 +1,18 @@
-{"name":"ordvis-creative","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"node server.mjs","start":"node server.mjs","check":"node --check server.mjs && node --check public/app.js","test":"node --test"},"engines":{"node":">=22"}}
+{
+  "name": "ordvis-creative",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node --check scripts/build.mjs && node --check public/app.js",
+    "test": "node --test",
+    "build": "node scripts/build.mjs",
+    "predev": "npm run build",
+    "prestart": "npm run build"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

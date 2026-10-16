@@ -1,37 +1,62 @@
 # Ordvis Creative
 
-Türkçe, mobil uyumlu ajans sitesi. Tasarım ve hizmet kapsamı Ekim 2026 kataloğuna dayanır. Harici çalışma zamanı bağımlılığı, izleyici ve çerez kullanılmaz.
+Türkçe, yedi sayfalı kreatif ajans sitesi. Koyu editoryal tasarım; sinematik konsept illüstrasyonları, drone giriş animasyonu ve etkileşimli kurgu/renk/efekt alanı. Harici çalışma zamanı bağımlılığı, çerez veya izleyici kullanılmaz.
 
-## Çalıştırma
+## Bilgisayarında çalıştırma
 
-Node.js 22 veya üzeri (Node 24 ile doğrulandı).
+Node.js **22 veya üzeri** kurulu olmalı (Node 24 ile doğrulandı). VS Code ile klonlanmış depoda terminali açın:
 
 ```sh
-cd /workspace/ordvisweb
-npm ci --ignore-scripts
-npm run check
-npm test
+git pull origin main
+npm ci
 npm run dev
 ```
 
-Sunucu varsayılan olarak 3000 portunda çalışır; `PORT` ile değiştirilebilir. Ayrı derleme adımı yoktur. `public/` içeriği doğrudan sunulur. Sunucu sürecinin yeni görevlerde yeniden başlatılması gerekir.
+`Ordvis Creative listening on 3000` mesajı gelince aynı bilgisayarda `http://127.0.0.1:3000` açın. Terminali açık tutun. Durdurmak için Ctrl+C. `npm run dev` ve `npm start`, sayfaları otomatik oluşturur.
 
-## İçerik
+Port kullanılıyorsa PowerShell'de `$env:PORT=3001; npm run dev`, Bash'te `PORT=3001 npm run dev` çalıştırın ve 3001 portunu açın. Windows başlangıç yolu kontrolü dosya URL'sine dönüştürülür; boşluk ve Türkçe karakter içeren yollar desteklenir. Bu ortamda başlangıç Linux üzerinde doğrulandı; Windows makinesinde ayrıca çalıştırılmadı.
 
-- `public/index.html`: hizmetler, fiyatlar, kapsam ve SSS
-- `public/style.css`: responsive tasarım ve hareket azaltma desteği
-- `public/app.js`: menü, paket seçimi, WhatsApp proje mesajı ve gizlilik penceresi
-- `public/ordvis-katalog-2026.pdf`: kullanıcı tarafından sağlanan orijinal katalog
-- `server.mjs`: genel dosya izin listesi ve güvenlik başlıkları
+## Sayfalar
 
-İletişim: ordviscreative@gmail.com, +90 530 716 88 08. Form, proje bilgilerini URL-kodlaması ile WhatsApp mesaj taslağına aktarır; ziyaretçi göndermeden mesaj ajansa ulaşmaz. Site form verisini saklamaz. Telefon ve e-posta bağlantıları da sunulur. PDF fiyatları 30 Kasım 2026 tarihine kadar geçerlidir.
+| Yol | İçerik |
+| --- | --- |
+| `/` | Görsel ana sayfa ve uzmanlık alanları |
+| `/produksiyon` | Film, marka, mekân ve sosyal içerik üretimi |
+| `/drone` | Yukarıdan gelen drone, tekrar oynatma ve hareket duraklatma |
+| `/kurgu` | Ham/renk/efekt geçişi ve 12 saniyelik zaman çizelgesi |
+| `/dijital` | Web, sosyal medya, Meta ve Google reklam yönetimi |
+| `/paketler` | Katalogdaki fiyatlar, karşılaştırma ve SSS |
+| `/iletisim` | Telefon, e-posta ve WhatsApp proje mesajı |
+
+Drone görseli ve manzaralar orijinal SVG konsept illüstrasyonlarıdır; gerçek çekim veya müşteri referansı olarak sunulmaz. Gerçek ajans çekimleri geldiğinde konsept görsellerin yerini alabilir. Kurgu alanı etkileşimli bir görsel demodur, ses/video oynatmaz. Motion/VFX özel kapsamı ayrıca teklif edilir; PDF'deki paketlere yeni bir teslimat taahhüdü eklenmemiştir.
+
+## Düzenleme
+
+- `scripts/build.mjs`: ortak başlık/altbilgi ve sayfa şablonları.
+- `content/paketler.html`: katalog kapsamı, fiyatlar ve koşullar.
+- `content/iletisim.html`: iletişim formu ve metinler.
+- `public/style.css`, `public/app.js`: responsive tasarım ve etkileşimler.
+- `public/media/`: yerel konsept görselleri.
+- `public/*.html`: oluşturulan, Git'e dahil edilen sayfalar; doğrudan düzenlemek yerine kaynak şablonlarını değiştirin.
+
+Şablon değişikliğinden sonra `npm run build` çalıştırın. `npm run dev` başlamadan önce de otomatik çalışır. Açık sunucuda HTML kaynak değişiklikleri için yeniden build yapıp tarayıcıyı yenileyin. Derleme bağımlılığı yoktur; yalnız Node.js kullanılır.
+
+İletişim: **ordviscreative@gmail.com**, **+90 530 716 88 08**. Paket bağlantısı, seçimi `/iletisim?paket=…` üzerinden taşır. Form, URL-kodlanmış mesajı WhatsApp'ta açar; kullanıcı göndermeden mesaj ajansa ulaşmaz. Sunucu form verisini almaz/saklamaz. PDF fiyatları 30 Kasım 2026 tarihine kadar geçerlidir.
+
+## Kontroller
+
+```sh
+npm run build
+npm run check
+npm test
+```
+
+HTTP testleri yedi sayfanın doğrudan ve sorgu parametreleriyle açılmasını, farklı başlıklarını, HEAD yanıtlarını, slash yönlendirmelerini, varlık türlerini, güvenlik başlıklarını, özel dosya engellerini ve CLI başlangıcını kontrol eder.
+
+Chromium'da 320/390/768/1440 px ekranlarda tüm sayfalarda taşma ve eksik görsel kontrolü; mobil menü ve Escape, drone giriş/tekrar oynatma/hareket azaltma, kurgu aşamaları, zaman çizelgesi oynat/duraklat/sona ulaşma, paket seçimi, karşılaştırma, WhatsApp mesajı ve gizlilik penceresi doğrulandı. WhatsApp testi dış yönlendirmeyi yakalar; gerçek mesaj göndermez.
 
 ## Güvenlik ve yayın
 
-Sunucu yalnız GET/HEAD kabul eder; açık dosya listesi dışındaki yollar 404 döner. CSP, frame engelleme, MIME koklama engelleme ve izin politikası uygulanır. Kullanıcı girdisi DOM'a HTML olarak basılmaz. Sunucu form verisi almaz veya saklamaz. Uygulamada hesap, yönetim paneli veya veri tabanı yoktur; katalogdaki panel ifadeleri müşterilere sunulan hizmetin kapsamıdır.
+Sunucu yalnız açık izin listesindeki sayfa ve varlıkları sunar; GET/HEAD dışındaki yöntemleri reddeder. Sıkı CSP, frame engelleme, MIME koklama engelleme, referrer ve izin politikası uygulanır. Kullanıcı girdisi HTML'e basılmaz. Üçüncü taraf animasyon kütüphanesi, hesap, veritabanı veya yönetim paneli yoktur. Katalogdaki panel ifadeleri müşterilere sunulan hizmetin kapsamıdır.
 
-Canlı yayında HTTPS sağlayan bir reverse proxy/barındırma kullanın. HSTS'yi yalnız HTTPS alan adı doğrulandıktan sonra proxy üzerinde etkinleştirin. Proxy güvenlik başlıklarını korumalıdır. İleride form API'si veya yönetim paneli eklenirse kimlik doğrulama, oran sınırlama, sunucu tarafı doğrulama, CSRF ve KVKK bilgilendirmesi ayrıca tasarlanmalıdır. Bu kurulum bir penetrasyon testi veya mutlak güvenlik garantisi değildir.
-
-## Doğrulama
-
-`npm test` gerçek HTTP sunucusunda içerik sunumu, PDF, güvenlik başlıkları, özel dosya engelleme, HEAD ve POST reddini kontrol eder. Chromium ile 390/768/1440 px taşma kontrolü; mobil menü, paket seçimi, WhatsApp mesaj taslağı, karşılaştırma ve gizlilik penceresi doğrulandı. Tarayıcı kontrol araçları yalnız geçici test klasörüne kuruldu; uygulama bağımlılığı değildir.
+Canlı yayında HTTPS sağlayan bir reverse proxy/barındırma kullanın. Güvenlik başlıkları korunmalıdır. HSTS yalnız HTTPS alan adı doğrulandıktan sonra proxy'de etkinleştirilmelidir. Yeni ortamda sunucu süreci yeniden başlatılır; `PORT` barındırma sağlayıcısınca atanabilir. İleride form API'si/panel eklenirse kimlik doğrulama, oran sınırlama, sunucu tarafı doğrulama, CSRF ve KVKK ayrıntıları ayrıca ele alınmalıdır. Bu doğrulamalar bir penetrasyon testi veya mutlak güvenlik garantisi değildir.

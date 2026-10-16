@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400" fill="none">
+  <defs>
+    <linearGradient id="arm" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#747a7d"/><stop offset=".22" stop-color="#3b4145"/><stop offset="1" stop-color="#101518"/></linearGradient>
+    <linearGradient id="shell" x1="253" y1="100" x2="352" y2="263" gradientUnits="userSpaceOnUse"><stop stop-color="#e3e5e4"/><stop offset=".2" stop-color="#b5bcbb"/><stop offset=".56" stop-color="#909998"/><stop offset="1" stop-color="#515e60"/></linearGradient>
+    <linearGradient id="shellEdge" x1="300" y1="96" x2="300" y2="280" gradientUnits="userSpaceOnUse"><stop stop-color="#8a9395"/><stop offset="1" stop-color="#172329"/></linearGradient>
+    <linearGradient id="blade" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#92999a"/><stop offset=".34" stop-color="#3e474c"/><stop offset="1" stop-color="#121b20"/></linearGradient>
+    <linearGradient id="motor" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#a7b2b5"/><stop offset=".25" stop-color="#313c41"/><stop offset=".65" stop-color="#080f14"/><stop offset="1" stop-color="#4f5e64"/></linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b8c1c1"/><stop offset=".35" stop-color="#59676d"/><stop offset=".6" stop-color="#18242b"/><stop offset="1" stop-color="#88969a"/></linearGradient>
+    <radialGradient id="lens"><stop stop-color="#15242d"/><stop offset=".35" stop-color="#192d40"/><stop offset=".54" stop-color="#314c58"/><stop offset=".65" stop-color="#0c141c"/><stop offset=".82" stop-color="#223338"/><stop offset="1" stop-color="#090f14"/></radialGradient>
+    <radialGradient id="glass"><stop stop-color="#769898" stop-opacity=".6"/><stop offset="1" stop-color="#24373f" stop-opacity="0"/></radialGradient>
+    <pattern id="vent" width="5" height="6" patternUnits="userSpaceOnUse"><path d="M1 1V5" stroke="#1b292e" stroke-width="2"/></pattern>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feGaussianBlur stdDeviation="8"/></filter>
+    <g id="motorUnit"><path d="M-23-2H23V13C23 23-23 23-23 13Z" fill="url(#motor)"/><ellipse cy="-2" rx="24" ry="16" fill="#111c22" stroke="#8b989d" stroke-width="1.5"/><ellipse cy="-2" rx="17" ry="11" fill="url(#metal)"/><ellipse cy="-2" rx="9" ry="6" fill="#09131a"/><path d="M-18 13V17M-13 15V19M-7 16V20M0 17V21M7 16V20M13 15V19M18 13V17" stroke="#141d23" stroke-width="2"/></g>
+    <g id="propeller"><path d="M-5 0C-30-10-64-12-91-7L-95 0C-62 5-36 7-6 4Z" fill="url(#blade)" stroke="#6c7b80" stroke-opacity=".45"/><path d="M5 0C30-10 64-12 91-7L95 0C62 5 36 7 6 4Z" fill="url(#blade)" stroke="#6c7b80" stroke-opacity=".45"/><path d="M-88-6L-78-7L-80 2L-90 1Z" fill="#c1c6c3"/><path d="M88-6L78-7L80 2L90 1Z" fill="#c1c6c3"/><ellipse rx="10" ry="6" fill="url(#metal)"/><ellipse rx="3" ry="2" fill="#0a141b"/></g>
+  </defs>
+  <ellipse cx="300" cy="315" rx="169" ry="23" fill="#000" opacity=".23" filter="url(#shadow)"/>
+  <g stroke="#0b1419" stroke-width="6" stroke-linejoin="round">
+    <path d="M269 143L152 99L135 106L132 119L251 179Z" fill="url(#arm)"/>
+    <path d="M331 143L448 99L465 106L468 119L349 179Z" fill="url(#arm)"/>
+    <path d="M264 211L137 263L121 280L133 292L282 249Z" fill="url(#arm)"/>
+    <path d="M336 211L463 263L479 280L467 292L318 249Z" fill="url(#arm)"/>
+  </g>
+  <g stroke="#a5afae" stroke-opacity=".5" stroke-width="2"><path d="M262 150L150 109M338 150L450 109M259 221L140 273M341 221L460 273"/></g>
+  <g fill="#142026" stroke="#4a5b61" stroke-width="1.5"><path d="M137 113L144 148L160 153L156 115Z"/><path d="M463 113L456 148L440 153L444 115Z"/><path d="M125 283L132 326L151 326L148 285Z"/><path d="M475 283L468 326L449 326L452 285Z"/></g>
+  <g fill="#97dfcb"><path d="M144 144L156 148L157 154L145 151Z"/><path d="M456 144L444 148L443 154L455 151Z"/></g>
+  <g fill="#d79177"><path d="M131 315H149V322H132Z"/><path d="M451 315H469L468 322H451Z"/></g>
+  <use href="#motorUnit" transform="translate(140 105) scale(.9)"/>
+  <use href="#motorUnit" transform="translate(460 105) scale(.9)"/>
+  <use href="#motorUnit" transform="translate(129 276)"/>
+  <use href="#motorUnit" transform="translate(471 276)"/>
+  <path d="M264 111C271 93 329 93 336 111L359 203C366 226 347 256 333 270H267C253 256 234 226 241 203Z" fill="url(#shellEdge)" stroke="#223038" stroke-width="3"/>
+  <path d="M268 110C278 101 322 101 332 110L350 193C351 210 340 229 327 242H273C260 229 249 210 250 193Z" fill="url(#shell)"/>
+  <path d="M271 110C283 104 317 104 329 110L345 181L329 197H271L255 181Z" fill="#d3d8d4" opacity=".23"/>
+  <path d="M279 110L273 185C273 194 279 202 288 203H312C321 202 327 194 327 185L321 110" stroke="#627173" stroke-width="1.4"/>
+  <path d="M280 113L276 178" stroke="#eff1e9" stroke-opacity=".65" stroke-width="1.3"/>
+  <path d="M267 145L259 187L270 194L276 148Z" fill="url(#vent)" opacity=".9"/>
+  <path d="M333 145L341 187L330 194L324 148Z" fill="url(#vent)" opacity=".9"/>
+  <path d="M281 215L277 230H323L319 215Z" fill="#26393e"/>
+  <path d="M286 219H314" stroke="#889a98" stroke-width="2"/>
+  <path d="M284 207H316" stroke="#edf1e8" stroke-opacity=".32"/>
+  <rect x="286" y="150" width="28" height="3" rx="1.5" fill="#677778"/>
+  <rect x="286" y="157" width="28" height="3" rx="1.5" fill="#7c8989"/>
+  <circle cx="300" cy="127" r="5" fill="#536568" stroke="#e5e9e0" stroke-opacity=".45"/>
+  <circle cx="300" cy="127" r="1.7" fill="#b6d3c5"/>
+  <g fill="#24363d" stroke="#839291" stroke-width="1.2"><ellipse cx="261" cy="216" rx="7" ry="5" transform="rotate(28 261 216)"/><ellipse cx="339" cy="216" rx="7" ry="5" transform="rotate(-28 339 216)"/></g>
+  <g fill="#07141c"><ellipse cx="261" cy="216" rx="3.7" ry="2.8" transform="rotate(28 261 216)"/><ellipse cx="339" cy="216" rx="3.7" ry="2.8" transform="rotate(-28 339 216)"/></g>
+  <path d="M274 244V261C274 272 284 280 300 280C316 280 326 272 326 261V244" stroke="#1c2b32" stroke-width="11"/>
+  <path d="M277 245V261C277 270 286 277 300 277C314 277 323 270 323 261V245" stroke="#79888a" stroke-width="2"/>
+  <rect x="277" y="260" width="46" height="36" rx="8" fill="url(#metal)" stroke="#0c1920" stroke-width="2"/>
+  <rect x="281" y="264" width="38" height="29" rx="5" fill="#14232b"/>
+  <circle cx="300" cy="278" r="13" fill="#050e15" stroke="#687c82" stroke-width="2"/>
+  <circle cx="300" cy="278" r="10" fill="url(#lens)"/>
+  <ellipse cx="297" cy="274" rx="6" ry="4" fill="url(#glass)" transform="rotate(-35 297 274)"/>
+  <circle cx="296" cy="274" r="1.6" fill="#a7ccca" opacity=".6"/>
+  <g id="rear-propellers"><use href="#propeller" transform="translate(140 98) rotate(-16) scale(.92)"/><use href="#propeller" transform="translate(460 98) rotate(16) scale(.92)"/></g>
+  <g id="front-propellers"><use href="#propeller" transform="translate(129 268) rotate(11)"/><use href="#propeller" transform="translate(471 268) rotate(-11)"/></g>
+</svg>
