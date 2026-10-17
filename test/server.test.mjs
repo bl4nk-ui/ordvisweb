@@ -116,7 +116,7 @@ test('unknown, private and traversal paths stay isolated and writes are rejected
 
 import {spawn} from 'node:child_process';
 import {once} from 'node:events';
-import {mkdtemp,cp,rm} from 'node:fs/promises';
+import {mkdtemp,cp,rm,mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 test('CLI starts from a path containing spaces and Turkish characters', {timeout:10000}, async()=>{
@@ -124,6 +124,8 @@ test('CLI starts from a path containing spaces and Turkish characters', {timeout
  let child;
  try{
   await cp(new URL('../server.mjs',import.meta.url),join(dir,'server.mjs'));
+  await mkdir(join(dir,'node_modules'),{recursive:true});
+  await cp(new URL('../node_modules/undici',import.meta.url),join(dir,'node_modules','undici'),{recursive:true});
   await cp(new URL('../lib',import.meta.url),join(dir,'lib'),{recursive:true});
   await cp(new URL('../public',import.meta.url),join(dir,'public'),{recursive:true});
   child=spawn(process.execPath,[join(dir,'server.mjs')],{cwd:dir,env:{...process.env,PORT:'0'},stdio:['ignore','pipe','pipe']});

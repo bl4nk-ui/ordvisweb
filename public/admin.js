@@ -18,6 +18,9 @@
   let currentSection = 'requests';
   let securityLoading = false;
   let changingMfaDevice = false;
+  let automationLoading = false;
+  let automationRequest = 0;
+  let automationReady = false;
   let screenLockTimer;
   const drafts = new Map();
 
@@ -81,6 +84,7 @@
     mfaEnabled = false;
     mfaRequired = true;
     clearSecuritySecrets();
+    clearAutomation();
     drafts.clear();
     $('leads-list').replaceChildren();
     $('detail-content').replaceChildren();
@@ -111,6 +115,7 @@
     mfaRequired = session.mfaRequired === true || !mfaEnabled;
     resetScreenLock();
     clearSecuritySecrets();
+    clearAutomation();
     const username = typeof session.username === 'string' ? session.username : 'Yönetici';
     $('user-name').textContent = username;
     $('user-initial').textContent = username.slice(0, 1).toLocaleUpperCase('tr-TR');
@@ -158,7 +163,10 @@
     const restricted = mfaRequired || !mfaEnabled;
     $('requests-nav').disabled = restricted || backupCodes.length > 0;
     $('mobile-requests-nav').disabled = restricted || backupCodes.length > 0;
+    $('automation-nav').disabled = restricted || backupCodes.length > 0;
+    $('mobile-automation-nav').disabled = restricted || backupCodes.length > 0;
     $('requests-nav').title = restricted ? 'Önce iki aşamalı doğrulamayı tamamla' : '';
+    $('automation-nav').title = restricted ? 'Önce iki aşamalı doğrulamayı tamamla' : '';
     $('mfa-required-notice').hidden = !restricted;
     $('assistant-card').hidden = restricted || backupCodes.length > 0;
     $('mfa-setup-panel').hidden = (mfaEnabled && !changingMfaDevice) || backupCodes.length > 0;
@@ -170,7 +178,8 @@
     $('security-badge').classList.toggle('is-enabled', mfaEnabled);
     $('requests-nav').classList.toggle('active', currentSection === 'requests');
     $('security-nav').classList.toggle('active', currentSection === 'security');
-    for (const [id, section] of [['requests-nav', 'requests'], ['mobile-requests-nav', 'requests'], ['security-nav', 'security'], ['mobile-security-nav', 'security']]) {
+    $('automation-nav').classList.toggle('active', currentSection === 'automation');
+    for (const [id, section] of [['requests-nav', 'requests'], ['mobile-requests-nav', 'requests'], ['security-nav', 'security'], ['mobile-security-nav', 'security'], ['automation-nav', 'automation'], ['mobile-automation-nav', 'automation']]) {
       if (currentSection === section) $(id).setAttribute('aria-current', 'page');
       else $(id).removeAttribute('aria-current');
     }
@@ -181,6 +190,7 @@
     currentSection = 'requests';
     $('requests').hidden = false;
     $('security-section').hidden = true;
+    $('automation-section').hidden = true;
     updateSecurityNavigation();
     await refreshLeads();
   }
@@ -190,6 +200,7 @@
     currentSection = 'security';
     $('requests').hidden = true;
     $('security-section').hidden = false;
+    $('automation-section').hidden = true;
     updateSecurityNavigation();
     if (focus) $('security-title').focus({ preventScroll: true });
     if (securityLoading) return;
@@ -216,6 +227,134 @@
     }
     if (!handleAuthError(error)) message($('security-message'), error.message);
   }
+
+  function clearAutomation() {
+    automationRequest += 1;
+    automationLoading = false;
+    automationReady = false;
+    $('automation-summaries').replaceChildren();
+    $('automation-summary-count').textContent = '0';
+    $('automation-enabled').checked = false;
+    $('automation-enabled').disabled = true;
+    $('automation-save').disabled = true;
+    $('automation-refresh').disabled = false;
+    $('automation-refresh-icon').classList.remove('is-spinning');
+    $('automation-summaries').removeAttribute('aria-busy');
+    $('automation-status').textContent = 'Durum yükleniyor…';
+    $('automation-status').removeAttribute('data-status');
+    $('automation-empty').hidden = false;
+    $('automation-empty').textContent = 'Özetler yükleniyor…';
+    $('automation-key-help').hidden = true;
+    $('automation-retry-row').hidden = true;
+    for (const id of ['automation-model', 'automation-pending', 'automation-last-run', 'automation-next-run', 'automation-retry-at']) $(id).textContent = '—';
+    $('automation-failed').hidden = true;
+    $('automation-failed').textContent = '';
+    $('automation-last-error').hidden = true;
+    $('automation-last-error').textContent = '';
+    message($('automation-message'));
+  }
+
+  async function showAutomation() {
+    if (!authenticated || mfaRequired || !mfaEnabled || backupCodes.length) return;
+    currentSection = 'automation';
+    $('requests').hidden = true;
+    $('security-section').hidden = true;
+    $('automation-section').hidden = false;
+    updateSecurityNavigation();
+    $('automation-title').focus({ preventScroll: true });
+    await loadAutomation();
+  }
+
+  function renderAutomation(result) {
+    if (!result || typeof result.enabled !== 'boolean' || typeof result.configured !== 'boolean' || !Array.isArray(result.summaries)) {
+      throw new ApiError('Otomasyon durumu okunamadı. Durumu yenileyip tekrar dene.', 0);
+    }
+    const labels = {
+      disabled: 'Otomatik özetler kapalı', needs_key: 'API anahtarı bekleniyor', scheduled: 'Saatlik çalışma planlandı',
+      running: 'Asistan talepleri inceliyor', waiting_retry: 'Yeniden deneme bekleniyor', error: 'Çalışma kontrol gerektiriyor',
+    };
+    $('automation-status').textContent = Object.hasOwn(labels, result.status) ? labels[result.status] : 'Durum bilgisi alınamadı';
+    $('automation-status').dataset.status = Object.hasOwn(labels, result.status) ? result.status : 'error';
+    $('automation-enabled').checked = result.enabled;
+    $('automation-key-help').hidden = result.configured;
+    $('automation-model').textContent = `Groq / ${typeof result.model === 'string' && result.model ? result.model : 'Model bilgisi yok'}`;
+    $('automation-pending').textContent = Number.isSafeInteger(result.pendingCount) && result.pendingCount >= 0 ? String(result.pendingCount) : '—';
+    $('automation-last-run').textContent = result.lastRunAt ? readableDate(result.lastRunAt, true) : 'Henüz çalışmadı';
+    $('automation-next-run').textContent = result.nextRunAt ? readableDate(result.nextRunAt, true) : result.enabled ? 'Planlama bekleniyor' : 'Otomasyon kapalı';
+    $('automation-retry-row').hidden = !result.retryAt;
+    $('automation-retry-at').textContent = result.retryAt ? readableDate(result.retryAt, true) : '—';
+    $('automation-failed').hidden = !(Number.isSafeInteger(result.failedCount) && result.failedCount > 0);
+    $('automation-failed').textContent = result.failedCount > 0 ? `${result.failedCount} talep üç geçersiz yanıttan sonra otomatik sıradan ayrıldı. Asıl talepler gelen kutusunda korunuyor; açıklamalarını kontrol edin.` : '';
+    $('automation-last-error').hidden = typeof result.lastError !== 'string' || !result.lastError;
+    $('automation-last-error').textContent = typeof result.lastError === 'string' ? result.lastError : '';
+    const summaries = result.summaries.filter((entry) => entry && typeof entry === 'object').slice(0, 100);
+    const fragment = document.createDocumentFragment();
+    for (const entry of summaries) {
+      const item = el('li', 'automation-summary');
+      const top = el('div', 'automation-summary-top');
+      const name = typeof entry.name === 'string' && entry.name ? entry.name : 'İsimsiz talep';
+      top.append(el('h3', '', name), el('span', 'automation-summary-date', readableDate(entry.createdAt, true)));
+      item.append(top, el('p', 'automation-summary-text', typeof entry.summary === 'string' ? entry.summary : 'Özet bilgisi yok.'));
+      const needs = Array.isArray(entry.needs) ? entry.needs.filter((need) => typeof need === 'string').slice(0, 10) : [];
+      if (needs.length) {
+        const list = el('ul', 'automation-needs');
+        list.setAttribute('aria-label', 'Belirlenen ihtiyaçlar');
+        list.append(...needs.map((need) => el('li', '', need)));
+        item.append(list);
+      }
+      if (typeof entry.nextStep === 'string' && entry.nextStep) {
+        const next = el('div', 'automation-next-step');
+        next.append(el('strong', '', 'Önerilen sonraki adım'), el('p', '', entry.nextStep));
+        item.append(next);
+      }
+      fragment.append(item);
+    }
+    $('automation-summaries').replaceChildren(fragment);
+    $('automation-summary-count').textContent = String(summaries.length);
+    $('automation-empty').hidden = summaries.length > 0;
+    $('automation-empty').textContent = result.enabled
+      ? (result.configured ? 'İlk özetler sıradaki saatlik çalışmadan sonra burada görünecek.' : 'API anahtarını terminalden eklediğinde otomatik özetler hazırlanabilecek.')
+      : 'Henüz bir özet yok. Paylaşım tercihini kaydederek saatlik asistanı başlatabilirsin.';
+    automationReady = true;
+  }
+
+  function setAutomationBusy(busy) {
+    automationLoading = busy;
+    $('automation-refresh').disabled = busy;
+    $('automation-enabled').disabled = busy || !automationReady;
+    $('automation-save').disabled = busy || !automationReady;
+    $('automation-refresh-icon').classList.toggle('is-spinning', busy);
+    $('automation-summaries').setAttribute('aria-busy', String(busy));
+  }
+
+  async function loadAutomation(enabled) {
+    if (!authenticated || mfaRequired || !mfaEnabled || backupCodes.length || automationLoading) return;
+    const generation = authGeneration;
+    const request = ++automationRequest;
+    const saving = typeof enabled === 'boolean';
+    setAutomationBusy(true);
+    message($('automation-message'));
+    try {
+      const result = await api('/api/admin/automation', saving ? { method: 'POST', csrf: true, body: { enabled } } : {});
+      if (generation !== authGeneration || request !== automationRequest) return;
+      renderAutomation(result);
+      if (saving) message($('automation-message'), result.enabled
+        ? (result.configured ? 'Saatlik asistan etkin. Sonraki çalışma zamanını aşağıdan takip edebilirsin.' : 'Paylaşım tercihin kaydedildi. API anahtarı eklenene kadar Groq çağrısı yapılmaz.')
+        : 'Otomatik özetler kapatıldı. Yeni bir saatlik çalışma başlatılmayacak.', 'success');
+    } catch (error) {
+      if (generation !== authGeneration || request !== automationRequest || handleAuthError(error)) return;
+      message($('automation-message'), error.message);
+      if (!automationReady) $('automation-empty').textContent = 'Özetler yüklenemedi. Durumu yenileyerek tekrar deneyebilirsin.';
+    } finally {
+      if (generation === authGeneration && request === automationRequest) setAutomationBusy(false);
+    }
+  }
+
+  $('automation-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (automationReady && !automationLoading) loadAutomation($('automation-enabled').checked);
+  });
+  $('automation-refresh').addEventListener('click', () => loadAutomation());
 
   function downloadFile(contents, name, type) {
     const url = URL.createObjectURL(new Blob([contents], { type }));
@@ -631,27 +770,32 @@
     $('logout-button').disabled = true;
     $('mobile-logout').disabled = true;
     $('security-mobile-logout').disabled = true;
+    $('automation-mobile-logout').disabled = true;
     try {
       await api('/api/admin/logout', { method: 'POST', body: {}, csrf: true });
       showLogin();
       message($('login-message'), 'Güvenli çıkış yapıldı.', 'success');
       $('username').focus();
     } catch (error) {
-      if (!handleAuthError(error)) message($(currentSection === 'security' ? 'security-message' : 'dashboard-message'), error.message);
+      if (!handleAuthError(error)) message($(currentSection === 'security' ? 'security-message' : currentSection === 'automation' ? 'automation-message' : 'dashboard-message'), error.message);
     } finally {
       $('logout-button').disabled = false;
       $('mobile-logout').disabled = false;
       $('security-mobile-logout').disabled = false;
+      $('automation-mobile-logout').disabled = false;
     }
   }
 
   $('logout-button').addEventListener('click', logout);
   $('mobile-logout').addEventListener('click', logout);
   $('security-mobile-logout').addEventListener('click', logout);
+  $('automation-mobile-logout').addEventListener('click', logout);
   $('requests-nav').addEventListener('click', showRequests);
   $('mobile-requests-nav').addEventListener('click', showRequests);
   $('security-nav').addEventListener('click', () => showSecurity());
   $('mobile-security-nav').addEventListener('click', () => showSecurity());
+  $('automation-nav').addEventListener('click', showAutomation);
+  $('mobile-automation-nav').addEventListener('click', showAutomation);
   $('refresh-button').addEventListener('click', refreshLeads);
   $('search').addEventListener('input', renderList);
   $('status-filter').addEventListener('change', renderList);

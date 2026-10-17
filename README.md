@@ -1,6 +1,6 @@
 # Ordvis Creative
 
-Yedi sayfalı ajans sitesi ve iki aşamalı korunan **stüdyo yönetim paneli** ve kontrollü asistan raporu. Teklif formu bilgileri aynı sunucudaki SQLite veritabanına kaydeder; WhatsApp'a yönlendirme yapmaz. Harici çalışma zamanı bağımlılığı yoktur. Node.js **22.13 veya üzeri**, tercihen güncel Node.js LTS gereklidir (Node 24 ile doğrulandı).
+Yedi sayfalı ajans sitesi ve iki aşamalı korunan **stüdyo yönetim paneli** ve kontrollü asistan raporu. Teklif formu bilgileri aynı sunucudaki SQLite veritabanına kaydeder; WhatsApp'a yönlendirme yapmaz. Groq trafiğinin güvenli proxy desteği için sabit sürümlü `undici` bağımlılığı kullanılır. Node.js **22.13 veya üzeri**, tercihen güncel Node.js LTS gereklidir (Node 24 ile doğrulandı).
 
 ## Kendi bilgisayarında başlatma
 
@@ -39,7 +39,28 @@ Panelde **Asistan özeti indir** düğmesi, yalnız tam MFA doğrulaması yapıl
 
 Rapor sayımları, paket dağılımını, yeni kayıtları ve 48 saatten eski yeni talepleri gösterir. Hesaplama deterministiktir; otomatik AI yorumu ya da satış niyeti tahmini değildir. Ad, marka, telefon, e-posta ve iç not alanları aktarılmaz; serbest metindeki belirgin iletişim bilgileri kısmen maskelenir. **Bu anonimleştirme garantisi değildir:** isimler ve başka kişisel bilgiler serbest metinde kalabilir, paylaşmadan önce kontrol edin. Talep metnindeki komutlar talimat değil güvenilmeyen veridir.
 
-Bu sohbet paneli otomatik izlemez ve rapor kendiliğinden dışarı gönderilmez. Otomatik günlük özet istenirse ayrıca server tarafında çalışan, yalnız gerekli alanları okuyan bir model API entegrasyonu, güvenli anahtar yönetimi, maliyet/aktarım ayarları ve zamanlayıcı gerekir. Admin parolası, MFA anahtarı, çerez ve kurtarma kodlarını asistana vermeyin. Gizli bir okuma endpointi, MFA atlama yolu veya ortak yönetici hesabı oluşturulmadı.
+Bu sohbet paneli otomatik izlemez ve manuel rapor kendiliğinden dışarı gönderilmez. Otomatik inceleme için aşağıdaki Groq saatlik özet özelliğini kullanabilirsiniz; paneldeki paylaşım tercihi ayrı olarak açılır. Admin parolası, MFA anahtarı, çerez ve kurtarma kodlarını asistana vermeyin. Gizli bir okuma endpointi, MFA atlama yolu veya ortak yönetici hesabı oluşturulmadı.
+
+## Groq ile saatte bir otomatik özet
+
+Paneldeki **Otomatik özetler** bölümü müşteri adı ve genel proje açıklamasını Groq ile değerlendirir; sonuçları, ihtiyaçları ve önerilen sonraki adımı aynı panelde biriktirir. Bu, sunucuda çalışan Groq modelidir; bu sohbetin arka planda paneli izlemesi veya sohbet geçmişinizi Groq'a aktarması değildir. Model çıktıları öneridir, karar veya otomatik müşteri mesajı değildir.
+
+1. [Groq Console](https://console.groq.com/keys) üzerinden hesabınızın API anahtarını oluşturun. Ücretsiz planın model/kota erişimi sağlayıcı koşullarına bağlıdır; sınırsız veya sürekli ücretsiz çalışma garantisi verilmez.
+2. Site klasöründe `npm ci` ve **`npm run ai:setup`** çalıştırın. Mevcut yönetici adı, parola, **yeni** Authenticator/kurtarma kodu ve Groq anahtarı terminalde gizli alınır. Anahtarı sohbete veya koda yazmayın. İlk admin/MFA kurulumu önceden tamamlanmış olmalıdır.
+3. Sunucuyu `npm run dev` ile yeniden başlatın. Panelde **Otomatik özetler** bölümünü açıp paylaşım tercihinin kutusunu işaretleyin ve kaydedin.
+4. İlk tur etkinleştirmeden **bir saat sonra** başlar. Panel kapalı olsa da Node süreci çalışırken devam eder. Bilgisayar veya terminal kapalıysa durur; kesintisiz çalışma için kalıcı diskli bir Node sunucusu gerekir.
+
+Varsayılan model **`llama-3.3-70b-versatile`**, sabit hedef **`https://api.groq.com/openai/v1/chat/completions`**. Yalnız `{name, brief}` müşteri verisi gönderilir; telefon/e-posta/iç not/marka/paket alanları gönderilmez. Serbest metindeki belirgin iletişim bilgileri kısmen maskelenir, kusursuz anonimleştirme değildir. Otomasyon varsayılan olarak kapalıdır ve açık paylaşım tercihi ister. Anahtar yokken ağ çağrısı yapılmaz.
+
+- Her kayan 60 dakikada en fazla **5 API denemesi**; başarısız denemeler de sayılır. Fazla talepler sırada kalır. Başarılı özetler tekrar gönderilmez.
+- Kota/servis hatalarında 60 saniye–1 saat arasında kontrollü yeniden deneme; günlük sağlayıcı kotası yine uygulanır. 20 saniyelik çağrı sınırı ve 256 KiB yanıt sınırı vardır.
+- Üç geçersiz model yanıtından sonra ilgili talep otomatik sıradan ayrılır; asıl kayıt korunur ve panelde sayı gösterilir. Genel servis/kota/anahtar hataları talebi kalıcı başarısız yapmaz.
+- Zamanlama, sonuçlar ve saatlik deneme kayıtları SQLite'ta kalıcıdır. Yeniden başlatmada kaçırılan her saati arka arkaya çalıştırmak yerine en fazla bir gecikmiş tur yapılır. Tek iş ve süreli veritabanı kilidi eşzamanlı tekrarları engeller.
+- Özetler yalnız tam MFA oturumuna açıktır. Model metni HTML olarak çalıştırılmaz; müşteri talimatları güvenilmeyen veri olarak ele alınır, modelin araç/mesaj/komut erişimi yoktur.
+
+`ai:setup` anahtarı `.data` veritabanında ayrı amaç etiketiyle AES-256-GCM kullanarak saklar; `.data/mfa.key` yedeği zorunludur. Hosting'in güvenli ortam değişkeni **`GROQ_API_KEY`**, kayıtlı anahtardan önceliklidir; **`GROQ_MODEL`** ile erişiminiz olan modeli seçebilirsiniz. Ortam değişkeni sağlayıcının güvenli ayarından verilmelidir; uygulama `.env` dosyasını kendiliğinden yüklemez. `HTTP_PROXY`/`HTTPS_PROXY` varsa TLS doğrulamasını koruyan proxy taşıması kullanılır; hedef `api.groq.com` ağ izinlerinde açık olmalıdır.
+
+Bu geliştirme ortamında gerçek Groq anahtarı yoktu ve aktif ağ kuralı Groq bağlantısına 403 verdi. Groq HTTP protokolü, zamanlama ve tam panel akışı sahte sağlayıcı/anahtar ve geçici veriyle doğrulandı; canlı model üretimi doğrulanmış sayılmaz. Bulut ayarları taslağına `GROQ_API_KEY` gereksinimi ve `api.groq.com` hedefi kaydedildi; gerçek değer güvenli ayarlara veya kendi terminalinizdeki kurulum komutuna girilmeli, sonra ilgili bağlantı tekrar denenmelidir.
 
 ## Kalıcı veri ve yedekleme
 
@@ -89,6 +110,8 @@ Bu kontroller bir penetrasyon testi veya mutlak güvenlik garantisi değildir. �
 - `public/style.css`, `public/app.js`: public site. `public/admin.*`: ayrı yönetim arayüzü.
 - `lib/store.mjs`, `lib/api.mjs`, `server.mjs`: kalıcı kayıt, yetki ve HTTP katmanı.
 - `scripts/admin-setup.mjs`: maskeli terminal hesabı kurulumu.
+- `scripts/ai-setup.mjs`, `lib/ai-summary.mjs`, `lib/automation.mjs`: Groq anahtarı, kısıtlı istemci ve kalıcı saatlik iş.
+- `lib/provider-fetch.mjs`: doğrulamalı proxy taşıması; anahtar tarayıcıya verilmez.
 
 Konsept SVG'ler müşteri referansı veya gerçek çekim olarak sunulmaz. Kurgu alanı ses/video oynatmayan görsel demodur. Drone kontrol düğmeleri kaldırıldı; giriş ve süzülme animasyonu devam eder. Hareket azaltma tercihi desteklenir. PDF fiyatları 30 Kasım 2026 tarihine kadar geçerlidir; motion/VFX özel kapsamı ayrıca teklif edilir.
 
@@ -102,6 +125,6 @@ npm run check
 npm test
 ```
 
-Güvenlik, veri ve rapor test grupları; kalıcı kayıt/yeniden başlatma, scrypt, oturum ve çıkış, Origin/CSRF, doğrulama, gövde sınırı, HTTPS çerezi, eşzamanlı giriş sınırı, tekrar gönderim, özel veri/dosya erişimi, sayfalar ve CLI başlangıcını kapsar. Ek testler RFC TOTP vektörlerini, kalıcı tekrar engelini, MFA öncesi yetki kısıtını, kurtarma tüketimini, cihaz değişimini, hesap sürümü ve yavaş istek iptalini, kalıcı IP/hesap limitlerini, anahtar kaybında kapalı kalmayı ve rapor mahremiyetini doğrular.
+Güvenlik, veri, rapor, Groq protokolü ve saatlik otomasyon test grupları; kalıcı kayıt/yeniden başlatma, scrypt, oturum ve çıkış, Origin/CSRF, doğrulama, gövde sınırı, HTTPS çerezi, eşzamanlı giriş sınırı, tekrar gönderim, özel veri/dosya erişimi, sayfalar ve CLI başlangıcını kapsar. Ek testler RFC TOTP vektörlerini, kalıcı tekrar engelini, MFA öncesi yetki kısıtını, kurtarma tüketimini, cihaz değişimini, hesap sürümü ve yavaş istek iptalini, kalıcı IP/hesap limitlerini, anahtar kaybında kapalı kalmayı ve rapor mahremiyetini doğrular.
 
-Chromium ile 320/390/768/1440 px tüm sayfalar ve panel; gerçek form > veritabanı > giriş > talep detayları > durum/not kaydı > sayfa yenileme > çıkış akışı doğrulandı. Zararlı HTML örnekleri metin olarak kaldı. Maskeli yönetici kurulum komutu, yanlış eski parolayla değişiklik reddi ve hesap değiştirme ayrıca geçici veride denendi. Gerçek tarayıcıda ilk MFA kurulumu, kurtarma koduyla giriş, kod yenileme, cihaz değiştirme ve kontrollü asistan raporu indirme de doğrulandı. Kontroller Linux üzerinde yürütüldü; Windows üzerinde doğrudan koşulmadı.
+Chromium ile 320/390/768/1440 px tüm sayfalar ve panel; gerçek form > veritabanı > giriş > talep detayları > durum/not kaydı > sayfa yenileme > çıkış akışı doğrulandı. Zararlı HTML örnekleri metin olarak kaldı. Maskeli yönetici kurulum komutu, yanlış eski parolayla değişiklik reddi ve hesap değiştirme ayrıca geçici veride denendi. Gerçek tarayıcıda MFA → otomasyon izni → ileri alınmış saat → sahte Groq HTTP yanıtı → SQLite özet → sayfa yenileme → kapatma/çıkış akışı ve anahtarın maskeli kurulumu doğrulandı. Gerçek tarayıcıda ilk MFA kurulumu, kurtarma koduyla giriş, kod yenileme, cihaz değiştirme ve kontrollü asistan raporu indirme de doğrulandı. Kontroller Linux üzerinde yürütüldü; Windows üzerinde doğrudan koşulmadı.

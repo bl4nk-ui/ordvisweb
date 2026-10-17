@@ -6,14 +6,18 @@
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check lib/api.mjs && node --check lib/store.mjs && node --check lib/mfa.mjs && node --check lib/assistant-report.mjs && node --check scripts/build.mjs && node --check scripts/admin-setup.mjs && node --check public/app.js && node --check public/admin.js",
+    "check": "node --check server.mjs && node --check lib/api.mjs && node --check lib/store.mjs && node --check lib/mfa.mjs && node --check lib/assistant-report.mjs && node --check lib/ai-summary.mjs && node --check lib/automation.mjs && node --check lib/provider-fetch.mjs && node --check lib/terminal.mjs && node --check scripts/build.mjs && node --check scripts/admin-setup.mjs && node --check scripts/ai-setup.mjs && node --check public/app.js && node --check public/admin.js",
     "test": "node --test",
     "build": "node scripts/build.mjs",
     "predev": "npm run build",
     "prestart": "npm run build",
-    "admin:setup": "node scripts/admin-setup.mjs"
+    "admin:setup": "node scripts/admin-setup.mjs",
+    "ai:setup": "node scripts/ai-setup.mjs"
   },
   "engines": {
     "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "undici": "7.30.1"
   }
 }
