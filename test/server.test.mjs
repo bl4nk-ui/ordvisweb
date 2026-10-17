@@ -65,7 +65,9 @@ test('public assets retain their content types and security policy', async()=>{
   for (const [route, type] of [
    ['/style.css', 'text/css; charset=utf-8'],
    ['/app.js', 'text/javascript; charset=utf-8'],
-   ['/favicon.svg', 'image/svg+xml'],
+   ['/favicon.png', 'image/png'],
+   ['/media/ordvis-logo.png', 'image/png'],
+   ['/media/ordvis-mark.png', 'image/png'],
    ['/media/aerial-coast.svg', 'image/svg+xml'],
    ['/media/edit-frame.svg', 'image/svg+xml'],
    ['/media/drone.svg', 'image/svg+xml'],

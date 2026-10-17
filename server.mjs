@@ -10,7 +10,8 @@ const files = new Map([
  ['/admin',['admin.html','text/html; charset=utf-8']],
  ['/admin.css',['admin.css','text/css; charset=utf-8']],
  ['/admin.js',['admin.js','text/javascript; charset=utf-8']],
- ['/favicon.svg',['favicon.svg','image/svg+xml']],
+ ['/favicon.png',['favicon.png','image/png']],
+ ...['ordvis-logo','ordvis-mark'].map(name=>['/media/'+name+'.png',['media/'+name+'.png','image/png']]),
  ...['aerial-coast','edit-frame','drone'].map(name=>['/media/'+name+'.svg',['media/'+name+'.svg','image/svg+xml']]),
  ['/ordvis-katalog-2026.pdf',['ordvis-katalog-2026.pdf','application/pdf']]
 ]);
