@@ -63,7 +63,7 @@ test('instruction injection remains ordinary JSON data with a warning', () => {
  assert.deepEqual(JSON.parse(JSON.stringify(report)).actionableQueue[0].brief, brief);
  assert.equal(report.reportType, 'activity_report_for_assistant');
  assert.match(report.privacy.untrustedDataNotice, /güvenilmeyen veridir/);
- assert.deepEqual(report.summary.byStatus, {new: 1, contacted: 0, archived: 0, unknown: 0});
+ assert.deepEqual(report.summary.byStatus, {new: 1, contacted: 0, archived: 0, completed: 0, unknown: 0});
 });
 
 test('counts and recommendations use explicit status, package, and age only', () => {
@@ -79,7 +79,7 @@ test('counts and recommendations use explicit status, package, and age only', ()
  assert.equal(report.generatedAt, now.toISOString());
  assert.deepEqual(report.summary, {
   total: 5,
-  byStatus: {new: 3, contacted: 1, archived: 1, unknown: 0},
+  byStatus: {new: 3, contacted: 1, archived: 1, completed: 0, unknown: 0},
   byPlan: [{plan: 'Drone', count: 3}, {plan: 'Kurgu', count: 2}],
   staleNewCount: 1,
  });
@@ -100,6 +100,21 @@ test('empty inbox is a valid report without fabricated activity', () => {
  assert.deepEqual(report.summary.byPlan, []);
  assert.deepEqual(report.actionableQueue, []);
  assert.deepEqual(report.recommendations, []);
+});
+
+test('completed work is counted separately without exporting received payments or recommending follow-up', () => {
+ const report = createAssistantReport([
+  makeLead({id: 'paid-job', status: 'completed', paymentReceivedCents: 987654321, completedAt: '2025-11-02T10:11:12.000Z'}),
+  makeLead({id: 'fresh-lead'}),
+ ], {now});
+ assert.equal(report.summary.byStatus.completed, 1);
+ assert.equal(report.summary.byStatus.unknown, 0);
+ assert.deepEqual(report.actionableQueue.map(record => record.id), ['fresh-lead']);
+ assert.ok(report.recommendations.every(item => !item.leadIds.includes('paid-job')));
+ const json = JSON.stringify(report);
+ assert.equal(json.includes('987654321'), false);
+ assert.equal(json.includes('2025-11-02T10:11:12.000Z'), false);
+ assert.ok(report.privacy.omittedFields.includes('paymentReceivedCents'));
 });
 
 test('report does not mutate inputs and masks contacts before truncating briefs', () => {

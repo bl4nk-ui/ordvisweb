@@ -2,7 +2,8 @@
 
 (() => {
   const $ = (id) => document.getElementById(id);
-  const statuses = { new: 'Yeni', contacted: 'Görüşülüyor', archived: 'Arşiv' };
+  const statuses = { new: 'Yeni', contacted: 'Görüşülüyor', completed: 'Tamamlandı', archived: 'Eski arşiv' };
+  const moneyFormat = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' });
   const dateFormat = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', timeZone: 'Europe/Istanbul' });
   const fullDateFormat = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
   let csrfToken = '';
@@ -12,6 +13,13 @@
   let loading = false;
   let authGeneration = 0;
   let leadCounts = null;
+  let currentFolder = 'active';
+  let leadsRequest = 0;
+  let deleteLeadId = null;
+  let deleting = false;
+  let deleteRequest = 0;
+  const savingLeads = new Set();
+  const deletingLeads = new Set();
   let mfaEnabled = false;
   let mfaRequired = true;
   let backupCodes = [];
@@ -81,6 +89,12 @@
     leads = [];
     leadCounts = null;
     selectedId = null;
+    leadsRequest += 1;
+    loading = false;
+    currentFolder = 'active';
+    savingLeads.clear();
+    deletingLeads.clear();
+    clearDeleteDialog();
     mfaEnabled = false;
     mfaRequired = true;
     clearSecuritySecrets();
@@ -88,10 +102,21 @@
     drafts.clear();
     $('leads-list').replaceChildren();
     $('detail-content').replaceChildren();
+    $('detail-content').hidden = true;
+    $('detail-empty').hidden = false;
+    $('detail-panel').setAttribute('aria-labelledby', 'detail-heading');
+    for (const id of ['count-active', 'count-new', 'count-contacted', 'count-completed', 'sidebar-count', 'completed-sidebar-count', 'visible-count']) $(id).textContent = '0';
+    $('updated-time').textContent = '';
+    $('user-name').textContent = 'Yönetici';
+    $('user-initial').textContent = 'O';
+    message($('dashboard-message'));
+    $('list-state').replaceChildren();
     $('password').value = '';
     $('login-code').value = '';
     $('search').value = '';
     $('status-filter').value = 'all';
+    $('archived-nav').hidden = true;
+    $('mobile-archived-nav').hidden = true;
     $('initial-state').hidden = true;
     $('dashboard-view').hidden = true;
     $('login-view').hidden = false;
@@ -163,6 +188,7 @@
     const restricted = mfaRequired || !mfaEnabled;
     $('requests-nav').disabled = restricted || backupCodes.length > 0;
     $('mobile-requests-nav').disabled = restricted || backupCodes.length > 0;
+    for (const id of ['completed-nav', 'mobile-completed-nav', 'archived-nav', 'mobile-archived-nav']) $(id).disabled = restricted || backupCodes.length > 0;
     $('automation-nav').disabled = restricted || backupCodes.length > 0;
     $('mobile-automation-nav').disabled = restricted || backupCodes.length > 0;
     $('requests-nav').title = restricted ? 'Önce iki aşamalı doğrulamayı tamamla' : '';
@@ -176,27 +202,38 @@
     $('cancel-mfa-change').hidden = !changingMfaDevice;
     $('security-badge').textContent = mfaEnabled ? '◈ İki aşamalı koruma etkin' : '◈ Kurulumu tamamla';
     $('security-badge').classList.toggle('is-enabled', mfaEnabled);
-    $('requests-nav').classList.toggle('active', currentSection === 'requests');
+    $('requests-nav').classList.toggle('active', currentSection === 'requests' && currentFolder === 'active');
+    $('completed-nav').classList.toggle('active', currentSection === 'requests' && currentFolder === 'completed');
+    $('archived-nav').classList.toggle('active', currentSection === 'requests' && currentFolder === 'archived');
     $('security-nav').classList.toggle('active', currentSection === 'security');
     $('automation-nav').classList.toggle('active', currentSection === 'automation');
-    for (const [id, section] of [['requests-nav', 'requests'], ['mobile-requests-nav', 'requests'], ['security-nav', 'security'], ['mobile-security-nav', 'security'], ['automation-nav', 'automation'], ['mobile-automation-nav', 'automation']]) {
-      if (currentSection === section) $(id).setAttribute('aria-current', 'page');
+    for (const [id, section, folder] of [['requests-nav', 'requests', 'active'], ['mobile-requests-nav', 'requests', 'active'], ['completed-nav', 'requests', 'completed'], ['mobile-completed-nav', 'requests', 'completed'], ['archived-nav', 'requests', 'archived'], ['mobile-archived-nav', 'requests', 'archived'], ['security-nav', 'security'], ['mobile-security-nav', 'security'], ['automation-nav', 'automation'], ['mobile-automation-nav', 'automation']]) {
+      if (currentSection === section && (!folder || folder === currentFolder)) $(id).setAttribute('aria-current', 'page');
       else $(id).removeAttribute('aria-current');
     }
   }
 
-  async function showRequests() {
+  async function showRequests(folder = 'active') {
     if (!authenticated || mfaRequired || !mfaEnabled || backupCodes.length) return;
+    const changed = currentFolder !== folder;
+    currentFolder = ['active', 'completed', 'archived'].includes(folder) ? folder : 'active';
+    clearDeleteDialog();
+    if (changed) {
+      $('status-filter').value = 'all';
+      closeDetail(false);
+    }
     currentSection = 'requests';
     $('requests').hidden = false;
     $('security-section').hidden = true;
     $('automation-section').hidden = true;
+    renderFolder();
     updateSecurityNavigation();
     await refreshLeads();
   }
 
   async function showSecurity(focus = true) {
     if (!authenticated) return;
+    clearDeleteDialog();
     currentSection = 'security';
     $('requests').hidden = true;
     $('security-section').hidden = false;
@@ -256,6 +293,7 @@
 
   async function showAutomation() {
     if (!authenticated || mfaRequired || !mfaEnabled || backupCodes.length) return;
+    clearDeleteDialog();
     currentSection = 'automation';
     $('requests').hidden = true;
     $('security-section').hidden = true;
@@ -499,25 +537,51 @@
     } finally { $('assistant-export-button').disabled = false; }
   });
 
-  function renderCounts(counts = leadCounts) {
+  function renderCounts(counts = null) {
     const fallback = {
       total: leads.length,
       new: leads.filter((lead) => lead.status === 'new').length,
       contacted: leads.filter((lead) => lead.status === 'contacted').length,
+      completed: leads.filter((lead) => lead.status === 'completed').length,
       archived: leads.filter((lead) => lead.status === 'archived').length,
     };
     leadCounts = {};
-    for (const key of ['total', 'new', 'contacted', 'archived']) {
+    for (const key of ['total', 'new', 'contacted', 'completed', 'archived']) {
       const count = Number.isSafeInteger(counts?.[key]) && counts[key] >= 0 ? counts[key] : fallback[key];
       leadCounts[key] = count;
-      $(`count-${key}`).textContent = String(count);
+      if (['new', 'contacted', 'completed'].includes(key)) $(`count-${key}`).textContent = String(count);
     }
+    $('count-active').textContent = String(leadCounts.new + leadCounts.contacted);
     $('sidebar-count').textContent = $('count-new').textContent;
+    $('completed-sidebar-count').textContent = String(leadCounts.completed);
+    for (const id of ['archived-nav', 'mobile-archived-nav']) $(id).hidden = leadCounts.archived === 0 && currentFolder !== 'archived';
+  }
+
+  function belongsToFolder(lead) {
+    return currentFolder === 'active' ? ['new', 'contacted'].includes(lead.status) : lead.status === currentFolder;
+  }
+
+  function renderFolder() {
+    const folders = {
+      active: { eyebrow: 'YENİ BİR HİKÂYENİN İLK ADIMI', title: 'Gelen ', emphasis: 'fikirler.', description: 'Yeni ve görüşülen talepler burada. Tamamlanan işler kendi klasöründe.', list: 'Proje talepleri', label: 'GELEN KUTUSU' },
+      completed: { eyebrow: 'BİRLİKTE ÜRETTİK. İZ BIRAKTIK.', title: 'Tamamlanan ', emphasis: 'işler.', description: 'Teslim edilen projeler ve aldığın ödemeler tek bir yerde.', list: 'Tamamlanan işler', label: 'İŞ DOSYASI' },
+      archived: { eyebrow: 'STÜDYONUN ÖNCEKİ KAYITLARI', title: 'Eski ', emphasis: 'arşiv.', description: 'Önceden arşivlediğin talepler burada korunuyor. Bu kayıtlar tamamlanmış iş sayılmaz.', list: 'Eski arşiv', label: 'ÖNCEKİ KAYITLAR' },
+    };
+    const folder = folders[currentFolder];
+    $('folder-eyebrow').textContent = folder.eyebrow;
+    $('dashboard-title').replaceChildren(document.createTextNode(folder.title), el('em', '', folder.emphasis));
+    $('folder-description').textContent = folder.description;
+    $('folder-list-title').textContent = folder.list;
+    $('folder-label').textContent = folder.label;
+    $('status-filter-field').hidden = currentFolder !== 'active';
+    $('leads-list').setAttribute('aria-label', folder.list);
+    renderList();
   }
 
   async function refreshLeads() {
-    if (loading || !authenticated || mfaRequired || !mfaEnabled) return;
+    if (!authenticated || mfaRequired || !mfaEnabled) return;
     const generation = authGeneration;
+    const request = ++leadsRequest;
     loading = true;
     $('refresh-button').disabled = true;
     $('refresh-icon').classList.add('is-spinning');
@@ -526,22 +590,23 @@
     if (!leads.length) $('list-state').textContent = 'Talepler yükleniyor…';
     try {
       const result = await api('/api/admin/leads');
-      if (generation !== authGeneration) return;
+      if (generation !== authGeneration || request !== leadsRequest) return;
       if (!Array.isArray(result.leads)) throw new ApiError('Talepler okunamadı. Sayfayı yenileyip tekrar dene.', 0);
       leads = result.leads.filter((lead) => lead && typeof lead.id === 'string');
       leads.sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
       renderCounts(result.counts);
       renderList();
       if (selectedId) {
-        if (leads.some((lead) => lead.id === selectedId)) renderDetail();
-        else closeDetail();
+        if (leads.some((lead) => lead.id === selectedId && belongsToFolder(lead))) renderDetail();
+        else closeDetail(false);
       }
       $('updated-time').textContent = `Son yenileme ${new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' }).format(new Date())}`;
     } catch (error) {
-      if (generation !== authGeneration || handleAuthError(error)) return;
+      if (generation !== authGeneration || request !== leadsRequest || handleAuthError(error)) return;
       message($('dashboard-message'), error.message);
       if (!leads.length) $('list-state').textContent = 'Talepler yüklenemedi. “Talepleri yenile” ile tekrar deneyebilirsin.';
     } finally {
+      if (generation !== authGeneration || request !== leadsRequest) return;
       loading = false;
       $('refresh-button').disabled = false;
       $('refresh-icon').classList.remove('is-spinning');
@@ -553,11 +618,11 @@
     const query = $('search').value.trim().toLocaleLowerCase('tr-TR');
     const filter = $('status-filter').value;
     const filtered = leads.filter((lead) => (
-      (filter === 'all' || lead.status === filter)
+      belongsToFolder(lead) && (currentFolder !== 'active' || filter === 'all' || lead.status === filter)
       && (!query || [lead.brand, lead.name, lead.email, lead.phone].some((value) => String(value || '').toLocaleLowerCase('tr-TR').includes(query)))
-    ));
+    )).sort((a, b) => (Date.parse(currentFolder === 'completed' ? b.completedAt : b.createdAt) || 0) - (Date.parse(currentFolder === 'completed' ? a.completedAt : a.createdAt) || 0));
     $('visible-count').textContent = String(filtered.length);
-    document.querySelectorAll('[data-stat]').forEach((node) => node.setAttribute('aria-pressed', String(node.dataset.stat === filter)));
+    document.querySelectorAll('[data-stat]').forEach((node) => node.setAttribute('aria-pressed', String(currentFolder === 'completed' ? node.dataset.stat === 'completed' : currentFolder === 'active' && node.dataset.stat === filter)));
     const fragment = document.createDocumentFragment();
     for (const lead of filtered) {
       const item = el('li');
@@ -575,6 +640,7 @@
       const bottom = el('span', 'lead-bottom');
       bottom.append(el('span', 'lead-plan', lead.plan || 'Birlikte karar verelim'), badge(lead.status));
       summary.append(top, el('span', 'lead-person', lead.name || lead.email || lead.phone || 'İletişim detayı belirtilmedi'), bottom);
+      if (currentFolder === 'completed' && Number.isSafeInteger(lead.paymentReceivedCents)) summary.append(el('span', 'lead-payment', `${moneyFormat.format(lead.paymentReceivedCents / 100)} tahsil edildi`));
       button.append(avatar, summary);
       button.addEventListener('click', () => selectLead(lead.id));
       item.append(button);
@@ -583,9 +649,10 @@
     $('leads-list').replaceChildren(fragment);
     $('list-state').replaceChildren();
     if (!filtered.length) {
+      const inFolder = leads.some(belongsToFolder);
       $('list-state').append(
-        el('strong', '', leads.length ? 'Bu filtrede talep yok.' : 'Yeni başlangıçlara hazır.'),
-        el('span', '', leads.length ? 'Aramayı değiştir veya başka bir durum seç.' : 'Siteden gönderilen proje talepleri burada birikecek.'),
+        el('strong', '', query || inFolder ? 'Bu filtrede talep yok.' : currentFolder === 'completed' ? 'İyi işler burada birikecek.' : currentFolder === 'archived' ? 'Eski arşiv artık boş.' : 'Yeni başlangıçlara hazır.'),
+        el('span', '', query || inFolder ? 'Aramayı değiştir veya başka bir durum seç.' : currentFolder === 'completed' ? 'Bir talebi tamamlayıp alınan ödemeyi kaydettiğinde burada görünür.' : currentFolder === 'archived' ? 'Yeni ve tamamlanan işler kendi klasörlerinde.' : 'Siteden gönderilen proje talepleri burada birikecek.'),
       );
     }
   }
@@ -601,7 +668,7 @@
     heading?.focus({ preventScroll: true });
   }
 
-  function closeDetail() {
+  function closeDetail(focus = true) {
     const previousId = selectedId;
     selectedId = null;
     $('detail-content').hidden = true;
@@ -610,7 +677,7 @@
     $('detail-panel').setAttribute('aria-labelledby', 'detail-heading');
     renderList();
     const previousButton = Array.from($('leads-list').querySelectorAll('button')).find((button) => button.dataset.leadId === previousId);
-    previousButton?.focus({ preventScroll: true });
+    if (focus) previousButton?.focus({ preventScroll: true });
   }
 
   function contactRow(symbol, value, href) {
@@ -623,10 +690,29 @@
     return row;
   }
 
+  function paymentCents(value) {
+    const match = /^(0|[1-9]\d{0,8})(?:[.,](\d{1,2}))?$/.exec(String(value).trim());
+    if (!match) return null;
+    const amount = Number(match[1]) * 100 + Number((match[2] || '').padEnd(2, '0'));
+    return Number.isSafeInteger(amount) && amount > 0 && amount <= 99999999999 ? amount : null;
+  }
+
+  function paymentValue(lead) {
+    return Number.isSafeInteger(lead.paymentReceivedCents) ? (lead.paymentReceivedCents / 100).toFixed(2) : '';
+  }
+
+  function invalidateLeadLoad() {
+    leadsRequest += 1;
+    loading = false;
+    $('refresh-button').disabled = false;
+    $('refresh-icon').classList.remove('is-spinning');
+    $('leads-list').removeAttribute('aria-busy');
+  }
+
   function renderDetail() {
     const lead = leads.find((entry) => entry.id === selectedId);
     if (!lead) return;
-    const draft = drafts.get(lead.id) || { status: lead.status, notes: lead.notes || '' };
+    const draft = drafts.get(lead.id) || { status: lead.status, notes: lead.notes || '', paymentReceived: paymentValue(lead) };
     const content = document.createDocumentFragment();
     const topline = el('div', 'detail-topline');
     topline.append(el('span', 'detail-label', 'PROJE / DETAY'));
@@ -649,6 +735,13 @@
     content.append(topline, title, el('p', 'detail-date', readableDate(lead.createdAt, true)), badge(lead.status), contacts);
     content.append(el('h3', 'detail-section-label', 'İLGİLENDİĞİ PAKET'), el('span', 'detail-plan', lead.plan || 'Birlikte karar verelim'));
     content.append(el('h3', 'detail-section-label', 'AKLINDAKİ PROJE'), el('p', 'detail-brief', lead.brief || 'Proje özeti belirtilmedi.'));
+    if (Number.isSafeInteger(lead.paymentReceivedCents) && lead.paymentReceivedCents > 0) {
+      const receipt = el('div', 'payment-record');
+      receipt.append(el('span', '', 'ALINAN ÖDEME'), el('strong', '', moneyFormat.format(lead.paymentReceivedCents / 100)));
+      if (lead.completedAt) receipt.append(el('span', '', `İlk tamamlanma: ${readableDate(lead.completedAt, true)}`));
+      if (lead.status !== 'completed') receipt.append(el('p', '', 'İş yeniden açıldı. Önceki ödeme kaydı korunuyor.'));
+      content.append(receipt);
+    }
 
     const form = el('form', 'detail-editor');
     const statusLabel = el('label', '', 'Talep durumu');
@@ -656,11 +749,27 @@
     const status = el('select');
     status.id = 'lead-status';
     for (const [value, text] of Object.entries(statuses)) {
+      if (value === 'archived' && lead.status !== 'archived') continue;
       const option = el('option', '', text);
       option.value = value;
       option.selected = value === draft.status;
       status.append(option);
     }
+    const paymentField = el('div', 'payment-field');
+    const paymentLabel = el('label', '', 'Alınan toplam ödeme (TL)');
+    paymentLabel.htmlFor = 'lead-payment';
+    const payment = el('input');
+    payment.id = 'lead-payment';
+    payment.type = 'text';
+    payment.inputMode = 'decimal';
+    payment.maxLength = 12;
+    payment.autocomplete = 'off';
+    payment.placeholder = 'Örn. 12500,50';
+    payment.value = draft.paymentReceived ?? paymentValue(lead);
+    payment.setAttribute('aria-describedby', 'lead-payment-help');
+    const paymentHelp = el('p', 'field-help', 'İşi tamamlamak için aldığın toplam ödemeyi gir. Binlik ayırıcı kullanma; kuruş için virgül veya nokta kullanabilirsin. Bu tutar önceki kaydın yerini alır.');
+    paymentHelp.id = 'lead-payment-help';
+    paymentField.append(paymentLabel, payment, paymentHelp);
     const notesLabel = el('label', '', 'Stüdyo notları');
     notesLabel.htmlFor = 'lead-notes';
     const notes = el('textarea');
@@ -677,66 +786,173 @@
     saveButton.append(arrow);
     const statusMessage = el('p', 'message detail-message');
     statusMessage.setAttribute('role', 'status');
-    form.append(statusLabel, status, notesLabel, notes, draftNote, saveButton, statusMessage);
+    form.append(statusLabel, status, paymentField, notesLabel, notes, draftNote, saveButton, statusMessage);
     const trackDraft = () => {
-      const changed = status.value !== lead.status || notes.value !== (lead.notes || '');
-      if (changed) drafts.set(lead.id, { status: status.value, notes: notes.value });
+      paymentField.hidden = status.value !== 'completed';
+      payment.required = status.value === 'completed';
+      payment.setCustomValidity(payment.required && payment.value && paymentCents(payment.value) === null ? 'Sıfırdan büyük bir TL tutarı gir. Örnek: 12500,50. En fazla 999999999,99 TL.' : '');
+      const changed = status.value !== lead.status || notes.value !== (lead.notes || '') || (status.value === 'completed' && paymentCents(payment.value) !== lead.paymentReceivedCents);
+      if (changed) drafts.set(lead.id, { status: status.value, notes: notes.value, paymentReceived: payment.value });
       else drafts.delete(lead.id);
       draftNote.textContent = changed ? 'Kaydedilmemiş değişikliklerin var.' : 'Notlar yalnızca stüdyo ekibine görünür.';
-      saveButton.disabled = !changed;
+      saveButton.disabled = !changed || savingLeads.has(lead.id) || deletingLeads.has(lead.id);
       message(statusMessage);
     };
     status.addEventListener('change', trackDraft);
     notes.addEventListener('input', trackDraft);
+    payment.addEventListener('input', trackDraft);
     trackDraft();
+    const deleteButton = el('button', 'button danger-outline', 'Talebi kalıcı olarak sil');
+    deleteButton.type = 'button';
+    deleteButton.disabled = savingLeads.has(lead.id) || deletingLeads.has(lead.id);
+    deleteButton.addEventListener('click', () => openDeleteDialog(lead));
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (saveButton.disabled) return;
+      if (saveButton.disabled || deletingLeads.has(lead.id) || !form.reportValidity()) return;
       const generation = authGeneration;
-      const payload = { status: status.value, notes: notes.value.trim() };
+      const payload = { status: status.value, notes: notes.value.trim(), ...(status.value === 'completed' ? { paymentReceived: payment.value.trim() } : {}) };
+      savingLeads.add(lead.id);
+      invalidateLeadLoad();
       saveButton.disabled = true;
       status.disabled = true;
       notes.disabled = true;
+      payment.disabled = true;
+      deleteButton.disabled = true;
       form.setAttribute('aria-busy', 'true');
       saveButton.firstChild.textContent = 'Kaydediliyor…';
       message(statusMessage);
       try {
-        await api(`/api/admin/leads/${encodeURIComponent(lead.id)}`, { method: 'PATCH', body: payload, csrf: true });
+        const result = await api(`/api/admin/leads/${encodeURIComponent(lead.id)}`, { method: 'PATCH', body: payload, csrf: true });
         if (generation !== authGeneration) return;
-        const currentLead = leads.find((entry) => entry.id === lead.id) || lead;
-        if (leadCounts && currentLead.status !== payload.status) {
-          leadCounts[currentLead.status] = Math.max(0, (leadCounts[currentLead.status] || 0) - 1);
-          leadCounts[payload.status] = (leadCounts[payload.status] || 0) + 1;
-        }
-        Object.assign(currentLead, payload);
+        if (!result.lead || result.lead.id !== lead.id) throw new ApiError('Güncel kayıt okunamadı. Talepleri yenile.', 0);
+        invalidateLeadLoad();
+        const index = leads.findIndex((entry) => entry.id === lead.id);
+        if (index >= 0) leads[index] = result.lead;
+        if (generation === authGeneration) savingLeads.delete(lead.id);
         drafts.delete(lead.id);
         renderCounts();
         renderList();
         if (selectedId === lead.id) {
-          renderDetail();
-          const savedMessage = $('detail-content').querySelector('.detail-message');
-          if (savedMessage) message(savedMessage, 'Kaydedildi. Bir sonraki iyi işe.', 'success');
+          if (belongsToFolder(result.lead)) {
+            renderDetail();
+            const savedMessage = $('detail-content').querySelector('.detail-message');
+            if (savedMessage) message(savedMessage, 'Kaydedildi. Bir sonraki iyi işe.', 'success');
+          } else {
+            closeDetail(false);
+            message($('dashboard-message'), payload.status === 'completed' ? 'İş ve ödeme kaydedildi. Tamamlanan işler klasöründe seni bekliyor.' : 'Talep yeniden açıldı. Proje talepleri klasörüne taşındı.', 'success');
+          }
         } else {
           message($('dashboard-message'), 'Talep güncellendi.', 'success');
         }
       } catch (error) {
         if (generation !== authGeneration || handleAuthError(error)) return;
-        if (selectedId === lead.id) message(statusMessage, error.message);
+        savingLeads.delete(lead.id);
+        if (selectedId === lead.id) {
+          renderDetail();
+          const currentMessage = $('detail-content').querySelector('.detail-message');
+          if (currentMessage) message(currentMessage, error.message);
+        }
         else message($('dashboard-message'), error.message);
-        saveButton.disabled = false;
       } finally {
+        if (generation === authGeneration) savingLeads.delete(lead.id);
         status.disabled = false;
         notes.disabled = false;
+        payment.disabled = false;
+        deleteButton.disabled = false;
         form.removeAttribute('aria-busy');
         saveButton.firstChild.textContent = 'Değişiklikleri kaydet';
       }
     });
-    content.append(form);
+    if (savingLeads.has(lead.id) || deletingLeads.has(lead.id)) {
+      status.disabled = true;
+      payment.disabled = true;
+      notes.disabled = true;
+      saveButton.disabled = true;
+      form.setAttribute('aria-busy', 'true');
+    }
+    const deleteArea = el('div', 'detail-delete');
+    deleteArea.append(deleteButton, el('p', 'field-help', 'Kaydı saklamak için durumu “Tamamlandı” yap. Silme işlemi kalıcıdır.'));
+    content.append(form, deleteArea);
     $('detail-empty').hidden = true;
     $('detail-content').hidden = false;
     $('detail-content').replaceChildren(content);
     $('detail-panel').setAttribute('aria-labelledby', 'selected-lead-heading');
   }
+
+  function clearDeleteDialog() {
+    deleteRequest += 1;
+    deleteLeadId = null;
+    deleting = false;
+    if ($('delete-dialog').open) $('delete-dialog').close();
+    $('delete-lead-name').textContent = '';
+    $('delete-confirmation').value = '';
+    $('delete-confirmation').disabled = false;
+    $('delete-confirm').disabled = true;
+    $('delete-confirm').textContent = 'Kalıcı olarak sil';
+    $('delete-cancel').disabled = false;
+    $('delete-form').removeAttribute('aria-busy');
+    message($('delete-message'));
+  }
+
+  function openDeleteDialog(lead) {
+    if (!authenticated || mfaRequired || !mfaEnabled || savingLeads.has(lead.id) || deletingLeads.has(lead.id)) return;
+    clearDeleteDialog();
+    deleteLeadId = lead.id;
+    $('delete-lead-name').textContent = `${lead.brand || 'İsimsiz marka'} / ${lead.name || 'İsimsiz kişi'}`;
+    $('delete-dialog').showModal();
+    $('delete-cancel').focus();
+  }
+
+  $('delete-cancel').addEventListener('click', clearDeleteDialog);
+  $('delete-dialog').addEventListener('cancel', (event) => { event.preventDefault(); clearDeleteDialog(); });
+  $('delete-confirmation').addEventListener('input', () => {
+    $('delete-confirm').disabled = deleting || $('delete-confirmation').value.trim().toLocaleUpperCase('tr-TR') !== 'SİL';
+  });
+  $('delete-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (deleting || !deleteLeadId || $('delete-confirmation').value.trim().toLocaleUpperCase('tr-TR') !== 'SİL' || !authenticated || mfaRequired || !mfaEnabled) return;
+    const id = deleteLeadId;
+    const generation = authGeneration;
+    const request = deleteRequest;
+    deleting = true;
+    deletingLeads.add(id);
+    if (selectedId === id) renderDetail();
+    invalidateLeadLoad();
+    $('delete-confirm').disabled = true;
+    $('delete-confirm').textContent = 'Siliniyor…';
+    $('delete-confirmation').disabled = true;
+    $('delete-form').setAttribute('aria-busy', 'true');
+    message($('delete-message'));
+    try {
+      await api(`/api/admin/leads/${encodeURIComponent(id)}`, { method: 'DELETE', csrf: true, body: { confirmation: 'SİL' } });
+      if (generation !== authGeneration) return;
+      invalidateLeadLoad();
+      leads = leads.filter((lead) => lead.id !== id);
+      drafts.delete(id);
+      deletingLeads.delete(id);
+      renderCounts();
+      if (selectedId === id) closeDetail(false);
+      else renderList();
+      clearAutomation();
+      if (currentSection === 'automation') void loadAutomation();
+      if (request === deleteRequest) clearDeleteDialog();
+      message($('dashboard-message'), 'Talep ve ilişkili kayıtları kalıcı olarak silindi.', 'success');
+    } catch (error) {
+      if (generation !== authGeneration || handleAuthError(error)) return;
+      if (request === deleteRequest) message($('delete-message'), error.message);
+      else message($('dashboard-message'), error.message);
+    } finally {
+      if (generation === authGeneration) deletingLeads.delete(id);
+      if (generation === authGeneration && selectedId === id) renderDetail();
+      if (generation === authGeneration && request === deleteRequest) {
+        deleting = false;
+        $('delete-confirmation').disabled = false;
+        $('delete-confirm').disabled = $('delete-confirmation').value.trim().toLocaleUpperCase('tr-TR') !== 'SİL';
+        $('delete-confirm').textContent = 'Kalıcı olarak sil';
+        $('delete-form').removeAttribute('aria-busy');
+      }
+    }
+  });
 
   $('login-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -790,8 +1006,12 @@
   $('mobile-logout').addEventListener('click', logout);
   $('security-mobile-logout').addEventListener('click', logout);
   $('automation-mobile-logout').addEventListener('click', logout);
-  $('requests-nav').addEventListener('click', showRequests);
-  $('mobile-requests-nav').addEventListener('click', showRequests);
+  $('requests-nav').addEventListener('click', () => showRequests('active'));
+  $('mobile-requests-nav').addEventListener('click', () => showRequests('active'));
+  $('completed-nav').addEventListener('click', () => showRequests('completed'));
+  $('mobile-completed-nav').addEventListener('click', () => showRequests('completed'));
+  $('archived-nav').addEventListener('click', () => showRequests('archived'));
+  $('mobile-archived-nav').addEventListener('click', () => showRequests('archived'));
   $('security-nav').addEventListener('click', () => showSecurity());
   $('mobile-security-nav').addEventListener('click', () => showSecurity());
   $('automation-nav').addEventListener('click', showAutomation);
@@ -800,7 +1020,11 @@
   $('search').addEventListener('input', renderList);
   $('status-filter').addEventListener('change', renderList);
   document.querySelectorAll('[data-stat]').forEach((node) => node.addEventListener('click', () => {
-    $('status-filter').value = node.dataset.stat;
+    const completed = node.dataset.stat === 'completed';
+    if (currentFolder !== (completed ? 'completed' : 'active')) {
+      void showRequests(completed ? 'completed' : 'active');
+    }
+    $('status-filter').value = completed ? 'all' : node.dataset.stat;
     renderList();
   }));
   window.addEventListener('beforeunload', (event) => {

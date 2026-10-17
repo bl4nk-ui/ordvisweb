@@ -52,6 +52,8 @@
         <a class="wordmark" href="/" aria-label="Ordvis Creative ana sayfa">ordvis<span>CREATIVE STUDIO</span></a>
         <div class="sidebar-section">ÇALIŞMA ALANI</div>
         <button id="requests-nav" class="sidebar-item active" type="button" aria-current="page"><span aria-hidden="true">▤</span> Proje talepleri <span id="sidebar-count" class="sidebar-count">0</span></button>
+        <button id="completed-nav" class="sidebar-item" type="button"><span aria-hidden="true">✓</span> Tamamlanan işler <span id="completed-sidebar-count" class="sidebar-count">0</span></button>
+        <button id="archived-nav" class="sidebar-item" type="button" hidden><span aria-hidden="true">▱</span> Eski arşiv</button>
         <button id="automation-nav" class="sidebar-item" type="button" disabled><span aria-hidden="true">✦</span> Otomatik özetler</button>
         <button id="security-nav" class="sidebar-item" type="button"><span aria-hidden="true">◈</span> Güvenlik ve asistan</button>
         <a class="sidebar-item" href="/"><span aria-hidden="true">↗</span> Siteyi görüntüle</a>
@@ -60,18 +62,18 @@
 
       <div class="workspace">
         <header class="dashboard-header"><div class="breadcrumb">ORDVIS <span aria-hidden="true">/</span> STÜDYO PANELİ</div><a href="/" class="mobile-site-link">Siteye dön ↗</a><span id="today" class="today"></span></header>
-        <nav class="mobile-panel-nav" aria-label="Panel bölümleri"><button id="mobile-requests-nav" class="button secondary" type="button">Talepler</button><button id="mobile-automation-nav" class="button secondary" type="button" disabled>Otomatik özetler</button><button id="mobile-security-nav" class="button secondary" type="button">Güvenlik ve asistan</button></nav>
+        <nav class="mobile-panel-nav" aria-label="Panel bölümleri"><button id="mobile-requests-nav" class="button secondary" type="button">Talepler</button><button id="mobile-completed-nav" class="button secondary" type="button">Tamamlanan işler</button><button id="mobile-archived-nav" class="button secondary" type="button" hidden>Eski arşiv</button><button id="mobile-automation-nav" class="button secondary" type="button" disabled>Otomatik özetler</button><button id="mobile-security-nav" class="button secondary" type="button">Güvenlik ve asistan</button></nav>
         <section id="requests" class="requests-section" aria-labelledby="dashboard-title">
-          <div class="page-heading"><div><span class="eyebrow">YENİ BİR HİKÂYENİN İLK ADIMI</span><h1 id="dashboard-title">Gelen <em>fikirler.</em></h1><p>Her talep, birlikte üretmek için yeni bir fırsat.</p></div><button id="refresh-button" class="button secondary" type="button"><span id="refresh-icon" aria-hidden="true">↻</span> Talepleri yenile</button></div>
+          <div class="page-heading"><div><span id="folder-eyebrow" class="eyebrow">YENİ BİR HİKÂYENİN İLK ADIMI</span><h1 id="dashboard-title" tabindex="-1">Gelen <em>fikirler.</em></h1><p id="folder-description">Her talep, birlikte üretmek için yeni bir fırsat.</p></div><button id="refresh-button" class="button secondary" type="button"><span id="refresh-icon" aria-hidden="true">↻</span> Talepleri yenile</button></div>
           <div class="stats" aria-label="Talep özeti">
-            <button class="stat-card" type="button" data-stat="all" aria-pressed="true"><span class="stat-label">TOPLAM TALEP <span aria-hidden="true">↗</span></span><strong id="count-total">0</strong><span class="stat-description">Tüm başlangıçlar</span></button>
+            <button class="stat-card" type="button" data-stat="all" aria-pressed="true"><span class="stat-label">AKTİF TALEP <span aria-hidden="true">↗</span></span><strong id="count-active">0</strong><span class="stat-description">Sıradaki iyi işler</span></button>
             <button class="stat-card accent-card" type="button" data-stat="new" aria-pressed="false"><span class="stat-label">YENİ <span class="status-dot" aria-hidden="true"></span></span><strong id="count-new">0</strong><span class="stat-description">İlk temasını bekliyor</span></button>
             <button class="stat-card" type="button" data-stat="contacted" aria-pressed="false"><span class="stat-label">GÖRÜŞÜLÜYOR <span aria-hidden="true">↗</span></span><strong id="count-contacted">0</strong><span class="stat-description">Sohbet başladı</span></button>
-            <button class="stat-card" type="button" data-stat="archived" aria-pressed="false"><span class="stat-label">ARŞİV <span aria-hidden="true">↗</span></span><strong id="count-archived">0</strong><span class="stat-description">Kayıt altında</span></button>
+            <button class="stat-card" type="button" data-stat="completed" aria-pressed="false"><span class="stat-label">TAMAMLANDI <span aria-hidden="true">✓</span></span><strong id="count-completed">0</strong><span class="stat-description">Ödemesi kayıtlı işler</span></button>
           </div>
           <p id="dashboard-message" class="message dashboard-message" role="status" aria-live="polite"></p>
           <div class="inbox-layout">
-            <section class="inbox" aria-labelledby="inbox-title"><div class="inbox-heading"><h2 id="inbox-title">Proje talepleri <span id="visible-count" class="small-count">0</span></h2><span class="live-label"><span aria-hidden="true"></span> GELEN KUTUSU</span></div><div class="inbox-tools"><label class="search-field"><span aria-hidden="true">⌕</span><span class="sr-only">Taleplerde ara</span><input id="search" type="search" placeholder="Marka, kişi, e-posta veya telefon ara…" autocomplete="off" maxlength="200"></label><label class="filter-field"><span class="sr-only">Talep durumu</span><select id="status-filter"><option value="all">Tüm durumlar</option><option value="new">Yeni</option><option value="contacted">Görüşülüyor</option><option value="archived">Arşiv</option></select></label></div><div id="list-state" class="list-state" role="status"></div><ul id="leads-list" class="leads-list" aria-label="Proje talepleri"></ul><div class="inbox-footer"><span>Talepler yalnızca bu panelde görünür.</span><span id="updated-time"></span></div></section>
+            <section class="inbox" aria-labelledby="inbox-title"><div class="inbox-heading"><h2 id="inbox-title"><span id="folder-list-title">Proje talepleri</span> <span id="visible-count" class="small-count">0</span></h2><span id="folder-label" class="live-label"><span aria-hidden="true"></span> GELEN KUTUSU</span></div><div class="inbox-tools"><label class="search-field"><span aria-hidden="true">⌕</span><span class="sr-only">Bu klasörde ara</span><input id="search" type="search" placeholder="Marka, kişi, e-posta veya telefon ara…" autocomplete="off" maxlength="200"></label><label id="status-filter-field" class="filter-field"><span class="sr-only">Talep durumu</span><select id="status-filter"><option value="all">Aktif talepler</option><option value="new">Yeni</option><option value="contacted">Görüşülüyor</option></select></label></div><div id="list-state" class="list-state" role="status"></div><ul id="leads-list" class="leads-list" aria-label="Proje talepleri"></ul><div class="inbox-footer"><span>Talepler yalnızca bu panelde görünür.</span><span id="updated-time"></span></div></section>
 
             <section id="detail-panel" class="detail-panel" aria-labelledby="detail-heading" aria-live="polite"><div id="detail-empty" class="detail-empty"><span class="detail-empty-icon" aria-hidden="true">↗</span><span class="eyebrow">HER İYİ İŞ BİR FİKİRLE BAŞLAR</span><h2 id="detail-heading">Bir talebe<br>yakından bak.</h2><p>Soldan bir proje seç.<br>Detaylar, iletişim bilgileri ve<br>stüdyo notların burada.</p></div><div id="detail-content" hidden></div></section>
           </div>
@@ -145,5 +147,15 @@
       </div>
     </div>
   </main>
+  <dialog id="delete-dialog" class="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description">
+    <form id="delete-form">
+      <span class="eyebrow">TALEP YÖNETİMİ</span><h2 id="delete-title">Bu talebi silelim mi?</h2>
+      <p id="delete-lead-name" class="delete-lead-name"></p>
+      <p id="delete-description">Talep, ödeme kaydı, stüdyo notları ve varsa otomatik özeti kalıcı olarak silinir. Bu işlemi panelden geri alamazsın.</p>
+      <label for="delete-confirmation">Onaylamak için <strong>SİL</strong> yaz.</label><input id="delete-confirmation" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="3" required>
+      <p id="delete-message" class="message" role="status" aria-live="polite"></p>
+      <div class="delete-actions"><button id="delete-cancel" class="button secondary" type="button">Vazgeç</button><button id="delete-confirm" class="button danger" type="submit" disabled>Kalıcı olarak sil</button></div>
+    </form>
+  </dialog>
 </body>
 </html>

@@ -41,7 +41,17 @@ Yerel değişiklikler `git stash list` içinde korunur; `.data/` içindeki hesap
 1. Ziyaretçi ad, marka, e-posta, isteğe bağlı telefon, hizmet ve proje açıklamasını girer; aydınlatma metnini okuduğunu onaylar.
 2. Sunucu alanları doğrular ve talebi SQLite'a yazar; ziyaretçiye kayıt sonucu gösterilir.
 3. Yönetici `/admin` üzerinden giriş yapar; talepleri arar/filtreler, detayları görüntüler ve özel not ekler.
-4. Talep durumu **Yeni**, **Görüşülüyor** veya **Arşiv** olarak güncellenebilir. Yenileme düğmesi yeni talepleri getirir. Panelde Güvenlik alanından Authenticator cihazını değiştirebilir ve kurtarma kodlarını yenileyebilirsiniz; bu işlemler mevcut parola + taze ikinci faktör ister. Bu güvenlik yenilemeleri eski kurtarma setini ve diğer oturumları geçersiz kılar.
+4. **Aktif talepler** yalnız **Yeni** ve **Görüşülüyor** kayıtlarını gösterir. Bir işi **Tamamlandı** olarak kaydetmek için **alınan ödeme (TL)** girilmelidir; kayıt **Tamamlanan işler** bölümüne taşınır. Yenileme düğmesi yeni talepleri getirir.
+5. Panelde Güvenlik alanından Authenticator cihazını değiştirebilir ve kurtarma kodlarını yenileyebilirsiniz; bu işlemler mevcut parola + taze ikinci faktör ister. Bu güvenlik yenilemeleri eski kurtarma setini ve diğer oturumları geçersiz kılar.
+
+### Tamamlanan işler ve silme
+
+- Tahsil edilen tutarı örneğin **12500,50** veya **12500.50** yazın; binlik ayıracı kullanmayın. Tutar sıfırdan büyük, en fazla **999999999,99 TL** olmalıdır. Ödeme sunucuda doğrulanır ve kayan nokta hatası olmaması için tam sayı kuruş olarak saklanır; eksik veya geçersiz tutarda durum değişmez.
+- Tamamlanan işler ana gelen kutusuna karışmaz; kendi bölümünden aranabilir, ödeme ve notları düzenlenebilir. İş yeniden **Yeni** veya **Görüşülüyor** yapılırsa aktif bölüme döner; girilmiş tahsilat ve ilk tamamlanma tarihi korunur. Tutar kaydı o iş için girilen toplam tahsilattır; ayrı ödeme hareketleri defteri değildir.
+- Eski **Arşiv** kayıtları olduğu gibi korunur ve ayrı **Eski arşiv** bölümünde erişilebilir. Bunlara otomatik olarak ödeme veya tamamlanma tarihi atanmaz. Eski arşivden bir işi tamamlamak da ödeme gerektirir.
+- **Talebi sil**, seçili kaydı açık onaydan sonra kalıcı olarak kaldırır; bağlı otomatik özet ve özetleme işi de aynı veritabanı işleminde temizlenir. Bu işlem geri alınamaz. Yalnız oturum açmış ve MFA doğrulamış yönetici, aynı origin ve CSRF kontrolüyle silebilir.
+- Tamamlanan ve arşivlenen işler otomatik Groq kuyruğuna alınmaz; iş sürerken tamamlanan veya silinen kayıt için sonuç yeniden oluşturulmaz. Tahsilat alanı Groq'a veya indirilen asistan raporuna aktarılmaz.
+- Veri yapısı ilk açılışta işlem bütünlüğü korunarak güncellenir; mevcut yönetici, MFA, talepler, notlar ve özetler korunur. Güncellemeden önce sunucuyu durdurup tüm `DATA_DIR` klasörünü güvenli şekilde yedekleyin.
 
 Kayıtlar varsayılan olarak **`.data/ordvis.sqlite`** dosyasındadır. **`.data/mfa.key`**, Authenticator anahtarının AES-256-GCM şifrelemesi için üretilen yerel anahtardır; veritabanı ile birlikte korunmalı ve yedeklenmelidir. Tek kullanımlık kurtarma kodlarının yalnız hashleri tutulur. Anahtar dosyası kaybolduğunda sistem yeni anahtar uydurmaz; yedekten geri yükleme gerekir. `.data/` Git'e dahil edilmez ve HTTP üzerinden sunulmaz. Kayıtlar **uygulamanın çalıştığı makinede** tutulur; GitHub veri deposu değildir. Siteyi başka makineye klonlamak talepleri veya hesabı taşımaz. Yeni barındırmada aynı site ve panelin aynı kalıcı veri dizinini kullanması gerekir.
 
@@ -121,6 +131,7 @@ Bu kontroller bir penetrasyon testi veya mutlak güvenlik garantisi değildir. �
 - `public/*.html`: oluşturulan sayfalar. Şablon değişikliklerinde `npm run build` çalıştırın.
 - `public/style.css`, `public/app.js`: public site. `public/admin.*`: ayrı yönetim arayüzü.
 - `lib/store.mjs`, `lib/api.mjs`, `server.mjs`: kalıcı kayıt, yetki ve HTTP katmanı.
+- `lib/lead-payment.mjs`: tamamlanan işlerde zorunlu tahsilatın tam sayı kuruşa dönüşümü ve tutar sınırları.
 - `scripts/admin-setup.mjs`: maskeli terminal hesabı kurulumu.
 - `scripts/ai-setup.mjs`, `lib/ai-summary.mjs`, `lib/automation.mjs`: Groq anahtarı, kısıtlı istemci ve kalıcı saatlik iş.
 - `lib/provider-fetch.mjs`: doğrulamalı proxy taşıması; anahtar tarayıcıya verilmez.
@@ -138,5 +149,7 @@ npm test
 ```
 
 Güvenlik, veri, rapor, Groq protokolü ve saatlik otomasyon test grupları; kalıcı kayıt/yeniden başlatma, scrypt, oturum ve çıkış, Origin/CSRF, doğrulama, gövde sınırı, HTTPS çerezi, eşzamanlı giriş sınırı, tekrar gönderim, özel veri/dosya erişimi, sayfalar ve CLI başlangıcını kapsar. Ek testler RFC TOTP vektörlerini, kalıcı tekrar engelini, MFA öncesi yetki kısıtını, kurtarma tüketimini, cihaz değişimini, hesap sürümü ve yavaş istek iptalini, kalıcı IP/hesap limitlerini, anahtar kaybında kapalı kalmayı ve rapor mahremiyetini doğrular.
+
+İş tamamlama testleri ödeme zorunluluğunu, hatalı tutarda kaydın değişmemesini, tam kuruş hesabını, yeniden başlatma/yeniden açmayı, eski CHECK şemasının veri kaybetmeden geçişini, silme yetkilerini ve body sürerken çıkış yarışını kapsar. Gerçek Chromium'da MFA → aktif/tamamlanan/eski arşiv ayrımı → zorunlu tahsilat → yenilemede kalıcılık → yeniden açma → silmeden vazgeçme/onaylı silme → bağlı AI özetinin temizlenmesi ve çıkış/boşta kilitlenmede ödeme/dialog temizliği, 1440/390/320 px genişliklerde geçici verilerle doğrulandı. Bu kontrollerde gerçek müşteri kaydı veya sağlayıcı çağrısı kullanılmadı.
 
 Chromium ile 320/390/768/1440 px tüm sayfalar ve panel; gerçek form > veritabanı > giriş > talep detayları > durum/not kaydı > sayfa yenileme > çıkış akışı doğrulandı. Zararlı HTML örnekleri metin olarak kaldı. Maskeli yönetici kurulum komutu, yanlış eski parolayla değişiklik reddi ve hesap değiştirme ayrıca geçici veride denendi. Gerçek tarayıcıda MFA → otomasyon izni → ileri alınmış saat → sahte Groq HTTP yanıtı → SQLite özet → sayfa yenileme → kapatma/çıkış akışı ve anahtarın maskeli kurulumu doğrulandı. Gerçek tarayıcıda ilk MFA kurulumu, kurtarma koduyla giriş, kod yenileme, cihaz değiştirme ve kontrollü asistan raporu indirme de doğrulandı. Kontroller Linux üzerinde yürütüldü; Windows üzerinde doğrudan koşulmadı.
