@@ -24,6 +24,16 @@ Terminal `Ordvis Creative listening on 3000` yazınca aynı bilgisayarda:
 
 Terminali açık bırakın; durdurmak için Ctrl+C. `npm run dev` ve `npm start` sayfaları otomatik oluşturur. Güncelleme için sunucuyu durdurun, `git pull origin main`, `npm ci`, `npm run dev` çalıştırın. Mevcut hesabı yeniden kurmanız gerekmez. Port doluysa PowerShell'de `$env:PORT=3001; npm run dev`, Bash'te `PORT=3001 npm run dev` kullanın.
 
+`git pull` sırasında `Your local changes ... would be overwritten by merge` hatası çıkarsa, önce sunucuyu Ctrl+C ile durdurun. Yerel düzenlemelerinizi silmeden Git yedeğine alıp güncelleyin; komutları sırayla çalıştırın ve hata alan adımda durun:
+
+```sh
+git stash push -m "pull-oncesi-yerel-yedek"
+git pull --ff-only origin main
+npm ci
+```
+
+Yerel değişiklikler `git stash list` içinde korunur; `.data/` içindeki hesap, talepler ve anahtarlar bu Git işlemlerine dahil değildir. Oluşturulan HTML dosyalarını eski sürüme döndürmemek için yedeği otomatik olarak `git stash pop` ile uygulamayın; gerçekten yaptığınız içerik düzenlemeleri varsa yedekten ayrıca karşılaştırılabilir. Windows'ta Git'in CRLF satır sonları ile Node'un LF çıktısının oluşturduğu tekrarlayan değişiklikler `.gitattributes` ve kaynak satır sonu normalizasyonuyla önlenir. Sayfa düzenlemelerini `scripts/build.mjs` veya `content/` kaynaklarında yapın; `public/` altındaki yedi oluşturulan HTML dosyası bir sonraki build sırasında yeniden yazılır.
+
 ## Talep akışı ve yönetim paneli
 
 1. Ziyaretçi ad, marka, e-posta, isteğe bağlı telefon, hizmet ve proje açıklamasını girer; aydınlatma metnini okuduğunu onaylar.

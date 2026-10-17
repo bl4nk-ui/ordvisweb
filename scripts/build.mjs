@@ -1,6 +1,6 @@
 import {readFile,writeFile} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
-const read=name=>readFile(new URL(name,root),'utf8');
+const read=async name=>(await readFile(new URL(name,root),'utf8')).replace(/\r\n?/g,'\n');
 const arrow='<span aria-hidden="true">↗</span>';
 const button=(href,text,kind='accent')=>`<a class="button ${kind}" href="${href}">${text}${arrow}</a>`;
 const label=text=>`<div class="section-label">${text}</div>`;
