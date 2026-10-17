@@ -29,11 +29,12 @@ Terminali açık bırakın; durdurmak için Ctrl+C. `npm run dev` ve `npm start`
 ```sh
 git stash push -m "pull-oncesi-yerel-yedek"
 git pull --ff-only origin main
-git restore --worktree -- "public/*.html"
 npm ci
+npm run build
+git add --renormalize -- "public/*.html"
 ```
 
-Yerel değişiklikler `git stash list` içinde korunur; `.data/` içindeki hesap, talepler ve anahtarlar bu Git işlemlerine dahil değildir. `restore` adımını yalnız yedekleme ve pull başarılı olduktan sonra çalıştırın; eski Windows kopyalarındaki HTML dosyalarını yeni sürüm ve satır sonlarıyla yeniler. Oluşturulan HTML dosyalarını eski sürüme döndürmemek için yedeği otomatik olarak `git stash pop` ile uygulamayın; gerçekten yaptığınız içerik düzenlemeleri varsa yedekten ayrıca karşılaştırılabilir. Windows'ta Git'in CRLF satır sonları ile Node'un LF çıktısının oluşturduğu tekrarlayan değişiklikler `.gitattributes` ve kaynak satır sonu normalizasyonuyla önlenir. Sayfa düzenlemelerini `scripts/build.mjs` veya `content/` kaynaklarında yapın; `public/` altındaki yedi oluşturulan HTML dosyası bir sonraki build sırasında yeniden yazılır.
+Yerel değişiklikler `git stash list` içinde korunur; `.data/` içindeki hesap, talepler ve anahtarlar bu Git işlemlerine dahil değildir. `build` ve `add --renormalize` adımlarını yalnız yedekleme ve pull başarılı olduktan sonra çalıştırın; eski Windows kopyalarındaki HTML çıktıları ve Git'in satır sonu kaydı bir kez yenilenir. Güncel kaynaklardan üretilen sayfaların metni aynı kaldığı için yalnız satır sonu yenilemesi commit gerektirmez. Oluşturulan HTML dosyalarını eski sürüme döndürmemek için yedeği otomatik olarak `git stash pop` ile uygulamayın; gerçekten yaptığınız içerik düzenlemeleri varsa yedekten ayrıca karşılaştırılabilir. Windows'ta Git'in CRLF satır sonları ile Node'un LF çıktısının oluşturduğu tekrarlayan değişiklikler `.gitattributes` ve kaynak satır sonu normalizasyonuyla önlenir. Sayfa düzenlemelerini `scripts/build.mjs` veya `content/` kaynaklarında yapın; `public/` altındaki yedi oluşturulan HTML dosyası bir sonraki build sırasında yeniden yazılır.
 
 ## Talep akışı ve yönetim paneli
 
