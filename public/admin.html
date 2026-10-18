@@ -8,6 +8,7 @@
   <title>Stüdyo paneli — Ordvis Creative</title>
   <link rel="icon" href="/favicon.png?v=ordvis-20261017" type="image/png">
   <link rel="stylesheet" href="/admin.css">
+  <script src="/admin-expansion.js" defer></script>
   <script src="/admin.js" defer></script>
 </head>
 <body>
@@ -55,7 +56,7 @@
         <button id="requests-nav" class="sidebar-item active" type="button" aria-current="page"><span aria-hidden="true">▤</span> Proje talepleri <span id="sidebar-count" class="sidebar-count">0</span></button>
         <button id="completed-nav" class="sidebar-item" type="button"><span aria-hidden="true">✓</span> Tamamlanan işler <span id="completed-sidebar-count" class="sidebar-count">0</span></button>
         <button id="archived-nav" class="sidebar-item" type="button" hidden><span aria-hidden="true">▱</span> Eski arşiv</button>
-        <button id="tracking-nav" class="sidebar-item" type="button" disabled><span aria-hidden="true">↗</span> İş takibi <span id="tracking-sidebar-count" class="sidebar-count" hidden>0</span></button>
+        <button id="tracking-nav" class="sidebar-item" type="button" disabled><span aria-hidden="true">↗</span> Aktif projeler <span id="tracking-sidebar-count" class="sidebar-count" hidden>0</span></button>
         <button id="portfolio-nav" class="sidebar-item" type="button" disabled><span aria-hidden="true">◫</span> Portfolyo</button>
         <button id="automation-nav" class="sidebar-item" type="button" disabled><span aria-hidden="true">✦</span> Otomatik özetler</button>
         <button id="security-nav" class="sidebar-item" type="button"><span aria-hidden="true">◈</span> Güvenlik ve asistan</button>
@@ -66,11 +67,11 @@
       <div class="workspace">
         <header class="dashboard-header"><div class="breadcrumb">ORDVIS <span aria-hidden="true">/</span> STÜDYO PANELİ</div><a href="/" class="mobile-site-link">Siteye dön ↗</a><span id="today" class="today"></span></header>
         <nav class="mobile-panel-nav" aria-label="Panel bölümleri"><button id="mobile-requests-nav" class="button secondary" type="button">Talepler</button><button id="mobile-completed-nav" class="button secondary" type="button">Tamamlanan işler</button><button id="mobile-archived-nav" class="button secondary" type="button" hidden>Eski arşiv</button><button id="mobile-automation-nav" class="button secondary" type="button" disabled>Otomatik özetler</button><button id="mobile-security-nav" class="button secondary" type="button">Güvenlik ve asistan</button></nav>
-        <nav class="mobile-studio-nav" aria-label="Üretim araçları"><button id="mobile-tracking-nav" class="button secondary" type="button" disabled>İş takibi</button><button id="mobile-portfolio-nav" class="button secondary" type="button" disabled>Portfolyo</button></nav>
+        <nav class="mobile-studio-nav" aria-label="Üretim araçları"><button id="mobile-tracking-nav" class="button secondary" type="button" disabled>Aktif projeler</button><button id="mobile-portfolio-nav" class="button secondary" type="button" disabled>Portfolyo</button></nav>
         <section id="portfolio-section" class="studio-section" aria-labelledby="portfolio-title" hidden>
           <div class="page-heading"><div><span class="eyebrow">İŞLERİNİ GÖSTER. İMZANI BIRAK.</span><h1 id="portfolio-title" tabindex="-1">Stüdyonun <em>vitrini.</em></h1><p>Gerçek projelerini ekle, videolarını yükle ve hazır olduğunda yayına al.</p></div><button id="project-new" class="button primary" type="button">Yeni proje ekle +</button></div>
           <p id="portfolio-message" class="message" role="status" aria-live="polite"></p>
-          <div class="portfolio-admin-layout"><section class="studio-card portfolio-library" aria-labelledby="portfolio-library-title"><div class="studio-card-heading"><h2 id="portfolio-library-title">Projelerin</h2><button id="portfolio-refresh" class="text-button" type="button">Yenile ↻</button></div><p id="portfolio-list-state" class="field-help">Projeler yükleniyor…</p><ul id="project-list" class="project-admin-list"></ul><a href="/isler" class="button secondary" target="_blank" rel="noopener">Portfolyo sayfasını aç ↗</a></section><section id="project-editor" class="studio-card project-editor" aria-live="polite"></section></div>
+          <div class="portfolio-admin-layout"><section class="studio-card portfolio-library" aria-labelledby="portfolio-library-title"><div class="studio-card-heading"><h2 id="portfolio-library-title">Projelerin</h2><button id="portfolio-refresh" class="text-button" type="button">Yenile ↻</button></div><p id="portfolio-list-state" class="field-help">Projeler yükleniyor…</p><ul id="project-list" class="project-admin-list"></ul><a href="/portfolyo" class="button secondary" target="_blank" rel="noopener">Portfolyo sayfasını aç ↗</a></section><section id="project-editor" class="studio-card project-editor" aria-live="polite"></section></div>
           <footer class="workspace-footer"><span>ORDVIS CREATIVE / PORTFOLYO</span><span>İyi işlerin kendini anlatsın.</span><button id="portfolio-mobile-logout" class="mobile-logout" type="button">Çıkış yap ↗</button></footer>
         </section>
         <section id="tracking-section" class="studio-section" aria-labelledby="tracking-title" hidden>
@@ -166,10 +167,10 @@
     <form id="delete-form">
       <span class="eyebrow">TALEP YÖNETİMİ</span><h2 id="delete-title">Bu talebi silelim mi?</h2>
       <p id="delete-lead-name" class="delete-lead-name"></p>
-      <p id="delete-description">Talep, ödeme kaydı, stüdyo notları ve varsa otomatik özeti kalıcı olarak silinir. Bu işlemi panelden geri alamazsın.</p>
+      <p id="delete-description">Talep çöp kutusuna taşınır ve müşteri erişimi kapanır. 30 gün içinde çöp kutusundan geri yükleyebilirsin.</p>
       <label for="delete-confirmation">Onaylamak için <strong>SİL</strong> yaz.</label><input id="delete-confirmation" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="3" required>
       <p id="delete-message" class="message" role="status" aria-live="polite"></p>
-      <div class="delete-actions"><button id="delete-cancel" class="button secondary" type="button">Vazgeç</button><button id="delete-confirm" class="button danger" type="submit" disabled>Kalıcı olarak sil</button></div>
+      <div class="delete-actions"><button id="delete-cancel" class="button secondary" type="button">Vazgeç</button><button id="delete-confirm" class="button danger" type="submit" disabled>Çöp kutusuna taşı</button></div>
     </form>
   </dialog>
 </body>

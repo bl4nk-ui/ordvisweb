@@ -83,6 +83,22 @@
 .brief-actions #brief-back:focus-visible { outline: 3px solid #fff; outline-offset: 5px; }
 .contact input[type=date] { color-scheme: dark; min-width: 0; width: 100%; min-height: 48px; }
 .contact textarea { resize: vertical; min-height: 120px; }
+.managed-showcase { border-bottom: 1px solid #ffffff20; }
+.client-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; }
+.client-card { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 180px; border: 1px solid #ffffff26; border-radius: 20px; background: linear-gradient(145deg,#1c1c1f,#111113); padding: 28px 20px; text-align: center; overflow-wrap: anywhere; }
+.client-card img { display: block; max-width: 100%; width: 150px; height: 66px; object-fit: contain; margin-bottom: 22px; }
+.client-card h3 { font-size: 18px; line-height: 1.4; letter-spacing: -.5px; margin: 0; }
+.client-card p { font-size: 11px; line-height: 1.7; color: #aaaab6; margin: 10px 0 0; }
+.review-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; }
+.customer-review { display: flex; flex-direction: column; margin: 0; min-width: 0; padding: 30px; border: 1px solid #ffffff26; border-radius: 22px; background: #151517; }
+.review-stars { font-size: 15px; letter-spacing: 4px; color: #f4f4f1; }
+.customer-review blockquote { margin: 24px 0 30px; font-size: 16px; line-height: 1.85; overflow-wrap: anywhere; white-space: pre-line; }
+.customer-review figcaption { display: flex; flex-direction: column; gap: 5px; margin-top: auto; font-size: 12px; }
+.customer-review figcaption strong { font-weight: 550; }
+.customer-review figcaption span { font-size: 10px; color: #aaaab6; }
+.revision-policy { line-height: 1.8; }
+@media(max-width:1100px) { .client-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } .review-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:650px) { .client-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; } .client-card { min-height: 155px; padding: 23px 14px; } .client-card img { height: 50px; margin-bottom: 18px; } .client-card h3 { font-size: 15px; } .client-card p { font-size: 10px; } .review-grid { grid-template-columns: 1fr; } .customer-review { padding: 26px; } .customer-review blockquote { font-size: 15px; } }
 @media(hover:hover) and (pointer:fine) {
  .portfolio-filters button:hover { transform: translateY(-3px); }
  .portfolio-card:hover .portfolio-card-image > img { transform: scale(1.035); }

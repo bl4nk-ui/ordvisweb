@@ -870,3 +870,61 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent)}
 @media(max-width:1200px){.studio-section{padding:35px 28px 0}.portfolio-admin-layout{grid-template-columns:minmax(210px,.75fr) minmax(0,1.3fr);gap:17px}.studio-card{padding:23px}.portfolio-library{padding:20px}.project-admin-item>span{flex-direction:column;gap:7px}.tracking-summary{gap:12px}.tracking-metric{padding:20px;gap:17px}.tracking-metric>strong{font-size:29px}.studio-section .page-heading{flex-wrap:wrap}.studio-section .page-heading h1{font-size:37px}.studio-section .page-heading p{font-size:11px}}
 @media(max-width:950px){.studio-section{padding:30px 22px 0}.portfolio-admin-layout{grid-template-columns:1fr}.portfolio-library{position:static}.project-admin-list{grid-template-columns:repeat(2,minmax(0,1fr))}.project-admin-item{height:100%}.project-editor{scroll-margin-top:18px}.tracking-summary{grid-template-columns:1fr 1fr}.tracking-metric:last-child{grid-column:1/-1}.tracking-reminder-list{grid-template-columns:1fr}.tracking-metric>strong{font-size:33px}.tracking-board{grid-template-columns:repeat(7,minmax(190px,1fr))}}
 @media(max-width:650px){.mobile-studio-nav{display:flex;gap:8px;margin:9px 6% 0}.mobile-studio-nav .button{font-size:9px;min-height:36px;padding:9px 13px}.mobile-studio-nav [aria-current=page]{border-color:#8e8e8e;background:#323235;color:#e1e1df}.studio-section{padding:27px 6% 0}.studio-section .page-heading{gap:18px;margin-bottom:23px}.studio-section .page-heading h1{font-size:37px;line-height:1.12;letter-spacing:-1.7px}.studio-section .page-heading h1 em{display:block}.studio-section .page-heading>.button{font-size:10px;min-height:41px;padding:11px 18px}.studio-card{padding:24px 20px;border-radius:18px}.project-admin-list{grid-template-columns:1fr}.project-admin-item>span{flex-direction:row}.project-editor>h2{font-size:27px}.project-media-section>h3{font-size:23px}.studio-form>.button{width:100%}.studio-field input,.studio-field textarea,.studio-field select{font-size:12px;padding:12px}.studio-checkbox{font-size:10px}.tracking-summary{gap:11px}.tracking-metric{padding:20px 16px;gap:18px}.tracking-metric .eyebrow{font-size:7px;letter-spacing:1px}.tracking-metric>strong{font-size:29px}.tracking-metric>span:last-child{font-size:9px}.tracking-reminders>h2{font-size:23px;line-height:1.25}.tracking-reminder{padding:16px}.tracking-board{grid-template-columns:repeat(7,minmax(205px,1fr));margin-right:0}.studio-section .workspace-footer{font-size:8px}.delivery-card{padding:19px 15px}.delivery-card>.button{width:100%}.delivery-share{padding:13px}.tracking-balance{font-size:14px}.delivery-create .studio-checkbox{font-size:9px}}
+
+/* Shared-team tools and deliberate customer delivery. */
+.password-control{display:flex;align-items:center;gap:8px;min-width:0;position:relative;margin-bottom:18px}
+.password-control input{padding-right:83px;margin-bottom:0!important;min-width:0}
+.password-toggle{position:absolute;right:7px;top:6px;bottom:6px;padding:7px 12px;border:1px solid #57575d;border-radius:100px;background:#2a2a2e;color:var(--paper);font-size:10px;min-width:65px;transition:background .2s}
+.password-toggle:hover{background:#414146}
+.studio-field .password-control{margin-bottom:0}
+.security-grid .password-change-card{grid-column:1/-1}
+.password-change-card .studio-form{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}
+.password-change-card .studio-form>.button,.password-change-card .studio-form>.message{grid-column:1/-1}
+.password-change-card .field-help{max-width:760px}
+.expansion-body{display:grid;gap:22px;padding-bottom:44px}
+.expansion-body>.studio-card{max-width:100%;overflow-wrap:anywhere}
+.expansion-body>.button{width:fit-content}
+.expansion-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;min-width:0}
+.expansion-grid>.studio-card{min-width:0;overflow-wrap:anywhere}
+.expansion-actions{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+.expansion-actions>.studio-field{flex:1 1 170px;max-width:220px}
+.expansion-actions .button{font-size:10px;padding:10px 16px;white-space:normal;min-height:40px}
+.expansion-body .studio-form{gap:20px}
+.expansion-body .field-help{line-height:1.9}
+.client-logo-preview{display:block;width:180px;height:100px;object-fit:contain;background:#0e0e10;border:1px solid #4c4c52;border-radius:12px;padding:16px;margin-bottom:22px}
+.client-admin-card .button{font-size:11px}
+.review-copy{font-size:14px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}
+.activity-list{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.activity-list strong{font-size:13px;font-weight:500}
+.activity-list p{font-size:13px;margin:11px 0}
+.activity-list small{font-size:10px;color:#b7b7bc;overflow-wrap:anywhere}
+.assignment-filter{padding:0 23px 12px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.assignment-filter .studio-checkbox{font-size:11px}
+.assignment-filter .field-help{font-size:9px;margin:0;text-align:right}
+#tracking-mine-filter{font-size:10px;min-height:42px;white-space:normal}
+#tracking-mine-filter[aria-pressed=true]{border-color:#f0f0eb;background:#38383d}
+.leads-list>li{position:relative}
+.lead-deliver-button{display:block;border:1px solid #57575d;background:#252529;color:var(--paper);border-radius:100px;font-size:10px;line-height:1.6;margin:0 20px 16px auto;padding:7px 15px;transition:transform .2s,background .2s}
+.lead-deliver-button:hover{transform:translateY(-2px);background:#414146}
+.detail-delivery-shortcut{width:100%;margin:22px 0 6px;font-size:11px}
+.tracking-lead-card>.text-button{font-size:10px;padding:6px 0;color:var(--paper);text-decoration:underline;text-underline-offset:4px}
+.tracking-deliver{width:100%;min-height:34px;font-size:10px;padding:7px 12px}
+.revision-policy{border:1px solid #727279;border-radius:12px;background:linear-gradient(130deg,#313137,#222226);padding:15px 16px;margin:16px 0;color:#efefea;font-size:11px;line-height:1.9;overflow-wrap:anywhere}
+.delivery-order-number{font-size:13px;letter-spacing:.5px;color:#eee;margin-top:17px;overflow-wrap:anywhere}
+.delivery-share>strong{display:block;font-size:11px;font-weight:500;margin-bottom:13px;line-height:1.8}
+.timestamp-note{font-variant-numeric:tabular-nums;border:1px solid #4c4c51;padding:10px;border-radius:8px;background:#242429}
+.lead-operations-tools .studio-form{margin-top:22px}
+.lead-operations-tools h3{font-size:18px;margin:24px 0 0}
+.quote-admin-list{display:grid;gap:14px;margin:20px 0}
+.quote-admin-list .button{font-size:10px;margin-right:8px;margin-top:10px;min-height:38px;padding:9px 15px}
+.quote-line-items{display:grid;gap:14px}
+.quote-line-item{border:1px solid #54545a;border-radius:13px;padding:17px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.quote-line-item>.studio-field:first-child,.quote-line-item>.text-button{grid-column:1/-1}
+.quote-line-item>.text-button{text-align:left;font-size:10px;color:#d9c5c1;padding:0}
+.quote-editor>.button{font-size:10px}
+.quote-editor .tracking-balance{font-size:17px}
+.sidebar{scrollbar-width:thin;scrollbar-color:#535358 #151517}
+@media(min-width:651px){.sidebar-bottom{padding-top:24px}.sidebar-item{margin-bottom:4px;padding-top:11px;padding-bottom:11px}.sidebar .wordmark{width:110px;margin-bottom:23px}.sidebar-section{margin-top:17px}.sidebar-bottom>p{display:none}}
+@media(max-width:1050px){.password-change-card .studio-form{grid-template-columns:1fr}.expansion-grid{grid-template-columns:1fr}}
+@media(max-width:650px){.mobile-panel-nav,.mobile-studio-nav{flex-wrap:nowrap;overflow-x:auto;padding-bottom:9px;scrollbar-width:thin;scrollbar-color:#5b5b60 transparent;overscroll-behavior-inline:contain}.mobile-panel-nav .button,.mobile-studio-nav .button{flex:0 0 auto;white-space:nowrap}.mobile-studio-nav{margin-right:0;padding-right:6%;gap:8px}.mobile-panel-nav{margin-right:0!important;padding-right:6%}.expansion-body{gap:18px}.expansion-body .studio-card{padding:23px 19px}.expansion-body .button{max-width:100%;white-space:normal;font-size:11px}.expansion-actions{gap:9px}.assignment-filter{align-items:flex-start;padding:0 18px 12px;flex-direction:column;gap:0}.assignment-filter .field-help{text-align:left}.password-toggle{font-size:10px}.password-change-card .studio-form{gap:15px}.quote-line-item{padding:14px;gap:12px}.delivery-order-number{font-size:12px}.revision-policy{font-size:10px;padding:13px}.lead-deliver-button{margin-right:15px}}
+@media(prefers-reduced-motion:reduce){.lead-deliver-button,.password-toggle{transition:none}}

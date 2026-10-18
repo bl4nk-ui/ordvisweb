@@ -38,7 +38,7 @@ test('delivery links contain a one-time 256-bit token and expose only a minimal 
  assert.equal((await app.request('/api/delivery',{cookie:auth.cookie})).status,404);
  const response=await app.request('/api/delivery',{headers:bearer(result.token)}),data=await response.json();
  assert.equal(response.status,200);assert.match(response.headers.get('cache-control'),/no-store/);
- assert.deepEqual(Object.keys(data.delivery).sort(),['id','title','description','version','status','expiresAt','files','feedback'].sort());
+ assert.deepEqual(Object.keys(data.delivery).sort(),['id','title','description','version','status','expiresAt','files','feedback','orderNumber','project','revisions'].sort());
  assert.ok(!JSON.stringify(data).includes(leadId));
  assert.doesNotMatch(JSON.stringify(data),/deniz@example|05300000000|payment|notes|briefDetails|token_hash|storageName/);
 });

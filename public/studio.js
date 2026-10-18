@@ -19,28 +19,51 @@
   element.replaceChildren(document.createTextNode(message+' '));
   const button=create('button','studio-retry','Tekrar dene');button.type='button';button.addEventListener('click',retry,{once:true});element.append(button);
  }
+ function projectCard(project){
+  const link=create('a','portfolio-card');link.href='/portfolyo/'+encodeURIComponent(project.slug);
+  const art=create('div','portfolio-card-image');const cover=mediaURL(project.media?.cover);
+  const image=create('img',cover?'':'portfolio-no-cover');image.src=cover||'/media/ordvis-mark.png';image.alt=cover?project.title+' — proje kapağı':'';image.loading='lazy';image.decoding='async';
+  art.append(image,create('span','portfolio-card-category',categories[project.category]||'Ordvis Creative'));
+  const caption=create('div','portfolio-card-caption');const description=create('div');description.append(create('h3','',project.title));if(project.summary)description.append(create('p','',project.summary.length>260?project.summary.slice(0,257)+'…':project.summary));
+  const arrow=create('span','portfolio-card-arrow','↗');arrow.setAttribute('aria-hidden','true');caption.append(description,arrow);link.append(art,caption);return link;
+ }
+ const validProjects=projects=>Array.isArray(projects)?projects.filter(project=>project&&typeof project.slug==='string'&&typeof project.title==='string'):[];
+ const featured=document.querySelector('#home-featured');
+ if(featured)request('/api/projects').then(({projects})=>{
+  const selected=validProjects(projects).filter(project=>project.featured===true||project.featured===1).sort((a,b)=>(Number(a.sortOrder)||0)-(Number(b.sortOrder)||0));
+  document.querySelector('#featured-grid').replaceChildren(...selected.map(projectCard));featured.hidden=selected.length===0;
+ }).catch(()=>{featured.hidden=true;});
+ const clients=document.querySelector('#client-showcase');
+ if(clients)request('/api/clients').then(payload=>{
+  const rows=Array.isArray(payload.clients)?payload.clients.filter(client=>client&&typeof client.name==='string'):[];
+  const cards=rows.map(client=>{
+   const card=create('article','client-card');let logo=null;
+   try{const url=new URL(client.logoUrl,location.origin);if(client.logoUrl&&url.origin===location.origin&&url.pathname.startsWith('/media/clients/')){logo=create('img');logo.src=url.pathname+url.search;logo.alt=client.name;logo.loading='lazy';logo.decoding='async';logo.addEventListener('error',()=>{logo.hidden=true;card.classList.remove('has-logo');});card.classList.add('has-logo');}}catch{}
+   if(logo)card.append(logo);card.append(create('h3','',client.name));if(client.description)card.append(create('p','',client.description));return card;
+  });document.querySelector('#client-grid').replaceChildren(...cards);clients.hidden=cards.length===0;
+ }).catch(()=>{clients.hidden=true;});
+ const reviews=document.querySelector('#review-showcase');
+ if(reviews)request('/api/reviews').then(payload=>{
+  const rows=Array.isArray(payload.reviews)?payload.reviews.filter(review=>review&&typeof review.text==='string'&&typeof review.displayName==='string'):[];
+  const cards=rows.map(review=>{
+   const card=create('figure','customer-review');const rating=Math.max(1,Math.min(5,Number(review.rating)||5));const stars=create('span','review-stars','★'.repeat(rating)+'☆'.repeat(5-rating));stars.setAttribute('aria-label',`5 üzerinden ${rating} yıldız`);
+   const quote=create('blockquote','',review.text);const author=create('figcaption');author.append(create('strong','',review.displayName));if(review.company)author.append(create('span','',review.company));card.append(stars,quote,author);return card;
+  });document.querySelector('#review-grid').replaceChildren(...cards);reviews.hidden=cards.length===0;
+ }).catch(()=>{reviews.hidden=true;});
  const grid=document.querySelector('#portfolio-grid');
  if(grid){
   const status=document.querySelector('#portfolio-status');const empty=document.querySelector('#portfolio-empty');const emptyCopy=document.querySelector('#portfolio-empty-copy');const count=document.querySelector('#portfolio-count');
   const filters=[...document.querySelectorAll('[data-category]')];let projects=[];let selected='all';
-  function card(project){
-   const link=create('a','portfolio-card');link.href='/isler/'+encodeURIComponent(project.slug);
-   const art=create('div','portfolio-card-image');const cover=mediaURL(project.media?.cover);
-   const image=create('img',cover?'':'portfolio-no-cover');image.src=cover||'/media/ordvis-mark.png';image.alt=cover?project.title+' — proje kapağı':'';image.loading='lazy';image.decoding='async';
-   art.append(image,create('span','portfolio-card-category',categories[project.category]||'Ordvis Creative'));
-   const caption=create('div','portfolio-card-caption');const description=create('div');description.append(create('h3','',project.title));if(project.summary)description.append(create('p','',project.summary.length>260?project.summary.slice(0,257)+'…':project.summary));
-   const arrow=create('span','portfolio-card-arrow','↗');arrow.setAttribute('aria-hidden','true');caption.append(description,arrow);link.append(art,caption);return link;
-  }
   function paint(){
    const shown=projects.filter(project=>selected==='all'||project.category===selected);
-   grid.replaceChildren(...shown.map(card));count.textContent=shown.length+' proje';empty.hidden=shown.length>0;
+   grid.replaceChildren(...shown.map(projectCard));count.textContent=shown.length+' proje';empty.hidden=shown.length>0;
    emptyCopy.textContent=projects.length===0?'Yayına aldığımız projeler bu alanda yer alacak. Aklınızdaki projeyi birlikte şekillendirelim.':'Bu alanda henüz yayında bir projemiz yok. Diğer alanlardaki işlerimizi keşfedebilir veya kendi projenizi bizimle paylaşabilirsiniz.';
    filters.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.category===selected)));
   }
   filters.forEach(button=>button.addEventListener('click',()=>{selected=button.dataset.category;paint();}));
   async function load(){
    status.textContent='Projeler yükleniyor…';grid.setAttribute('aria-busy','true');empty.hidden=true;
-   try{const result=await request('/api/projects');projects=Array.isArray(result.projects)?result.projects.filter(project=>project&&typeof project.slug==='string'&&typeof project.title==='string'):[];paint();status.textContent='';}
+   try{const result=await request('/api/projects');projects=validProjects(result.projects);paint();status.textContent='';}
    catch(error){count.textContent='';failure(status,error,load);}
    finally{grid.setAttribute('aria-busy','false');}
   }

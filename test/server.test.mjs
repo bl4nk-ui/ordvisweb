@@ -20,7 +20,7 @@ test('every public page opens directly with distinct content and accepts query p
   const base = `http://127.0.0.1:${server.address().port}`;
   const titles = new Set();
   const bodies = new Set();
-  for (const route of ['/', '/produksiyon', '/drone', '/kurgu', '/dijital', '/paketler', '/iletisim', '/isler', '/teslim']) {
+  for (const route of ['/', '/produksiyon', '/drone', '/kurgu', '/dijital', '/paketler', '/iletisim', '/portfolyo', '/teslim']) {
    const response = await fetch(base + route);
    assert.equal(response.status, 200, route);
    assert.equal(response.headers.get('content-type'), 'text/html; charset=utf-8', route);
@@ -51,6 +51,10 @@ test('every public page opens directly with distinct content and accepts query p
    assert.equal(head.headers.get('content-length'), response.headers.get('content-length'));
    assert.equal(await head.text(), '');
    assertSecurityHeaders(head);
+  }
+  for(const [legacy,current] of [['/isler','/portfolyo'],['/isler?utm_source=test','/portfolyo?utm_source=test'],['/isler/fixture-project?preview=test','/portfolyo/fixture-project?preview=test']]){
+   const redirect=await fetch(base+legacy,{redirect:'manual'});
+   assert.equal(redirect.status,308);assert.equal(redirect.headers.get('location'),current);assertSecurityHeaders(redirect);
   }
  } finally {
   await new Promise(resolve => server.close(resolve));
@@ -122,7 +126,7 @@ test('unknown, private and traversal paths stay isolated and writes are rejected
 
 import {spawn} from 'node:child_process';
 import {once} from 'node:events';
-import {mkdtemp,cp,rm,mkdir} from 'node:fs/promises';
+import {mkdtemp,cp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 test('CLI starts from a path containing spaces and Turkish characters', {timeout:10000}, async()=>{
@@ -130,8 +134,8 @@ test('CLI starts from a path containing spaces and Turkish characters', {timeout
  let child;
  try{
   await cp(new URL('../server.mjs',import.meta.url),join(dir,'server.mjs'));
-  await mkdir(join(dir,'node_modules'),{recursive:true});
-  await cp(new URL('../node_modules/undici',import.meta.url),join(dir,'node_modules','undici'),{recursive:true});
+  await cp(new URL('../node_modules',import.meta.url),join(dir,'node_modules'),{recursive:true});
+  await cp(new URL('../assets',import.meta.url),join(dir,'assets'),{recursive:true});
   await cp(new URL('../lib',import.meta.url),join(dir,'lib'),{recursive:true});
   await cp(new URL('../public',import.meta.url),join(dir,'public'),{recursive:true});
   child=spawn(process.execPath,[join(dir,'server.mjs')],{cwd:dir,env:{...process.env,PORT:'0'},stdio:['ignore','pipe','pipe']});

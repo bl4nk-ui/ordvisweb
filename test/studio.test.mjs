@@ -18,7 +18,7 @@ test('portfolio starts empty, drafts remain private, and publication exposes onl
  assert.equal(response.status,200);
  assert.equal(visible.clientName,'Approved Client');
  assert.equal(visible.challenge,'Original challenge');
- assert.deepEqual(Object.keys(visible).sort(),['id','slug','title','category','summary','challenge','approach','result','clientName','createdAt','updatedAt','media'].sort());
+ assert.deepEqual(Object.keys(visible).sort(),['id','slug','title','category','summary','challenge','approach','result','clientName','createdAt','updatedAt','media','featured','sortOrder'].sort());
  assert.doesNotMatch(JSON.stringify(visible),/storageName|tokenHash|paymentReceived|briefDetails|password_hash/);
  assert.equal((await app.request('/api/projects')).status,200);
  assert.equal((await app.request(`/api/admin/projects/${saved.id}`,{method:'PATCH',...auth,body:{published:false}})).status,200);

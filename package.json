@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check lib/api.mjs && node --check lib/store.mjs && node --check lib/lead-payment.mjs && node --check lib/mfa.mjs && node --check lib/assistant-report.mjs && node --check lib/ai-summary.mjs && node --check lib/automation.mjs && node --check lib/provider-fetch.mjs && node --check lib/terminal.mjs && node --check scripts/build.mjs && node --check scripts/admin-setup.mjs && node --check scripts/ai-setup.mjs && node --check public/app.js && node --check public/admin.js && node --check lib/studio-store.mjs && node --check lib/studio-api.mjs && node --check lib/delivery-store.mjs && node --check lib/delivery-api.mjs && node --check lib/media-files.mjs && node --check public/studio.js && node --check public/delivery.js",
+    "check": "node --check server.mjs && node --check lib/api.mjs && node --check lib/store.mjs && node --check lib/lead-payment.mjs && node --check lib/mfa.mjs && node --check lib/assistant-report.mjs && node --check lib/ai-summary.mjs && node --check lib/automation.mjs && node --check lib/provider-fetch.mjs && node --check lib/terminal.mjs && node --check scripts/build.mjs && node --check scripts/admin-setup.mjs && node --check scripts/ai-setup.mjs && node --check public/app.js && node --check public/admin.js && node --check lib/studio-store.mjs && node --check lib/studio-api.mjs && node --check lib/delivery-store.mjs && node --check lib/delivery-api.mjs && node --check lib/media-files.mjs && node --check public/studio.js && node --check public/delivery.js && node --check lib/accounts.mjs && node --check lib/operations-store.mjs && node --check lib/operations-api.mjs && node --check lib/quote-pdf.mjs && node --check public/admin-expansion.js",
     "test": "node --test",
     "build": "node scripts/build.mjs",
     "predev": "npm run build",
@@ -18,6 +18,8 @@
     "node": ">=22.13.0"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "1.1.1",
+    "pdf-lib": "1.17.1",
     "undici": "7.30.1"
   }
 }

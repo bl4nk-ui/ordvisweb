@@ -7,6 +7,9 @@
   const dateFormat = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', timeZone: 'Europe/Istanbul' });
   const fullDateFormat = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
   let csrfToken = '';
+  let account = { userId: 'owner', role: 'owner', mustChangePassword: false };
+  const orderCredentials = new Map();
+  let expansion;
   let leads = [];
   let selectedId = null;
   let authenticated = false;
@@ -97,6 +100,8 @@
     window.clearTimeout(screenLockTimer);
     authGeneration += 1;
     authenticated = false;
+    account = { userId: 'owner', role: 'owner', mustChangePassword: false };
+    expansion?.clear();
     csrfToken = '';
     leads = [];
     leadCounts = null;
@@ -150,12 +155,14 @@
     authGeneration += 1;
     csrfToken = session.csrfToken;
     authenticated = true;
+    account = { userId: session.userId || 'owner', role: session.role || 'owner', displayName: session.displayName || session.username, mustChangePassword: session.mustChangePassword === true };
+    expansion?.sessionChanged(account);
     mfaEnabled = session.mfaEnabled === true;
     mfaRequired = session.mfaRequired === true || !mfaEnabled;
     resetScreenLock();
     clearSecuritySecrets();
     clearAutomation();
-    const username = typeof session.username === 'string' ? session.username : 'Yönetici';
+    const username = account.displayName || (typeof session.username === 'string' ? session.username : 'Yönetici');
     $('user-name').textContent = username;
     $('user-initial').textContent = username.slice(0, 1).toLocaleUpperCase('tr-TR');
     $('password').value = '';
@@ -165,6 +172,7 @@
     $('dashboard-view').hidden = false;
     $('today').textContent = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Istanbul' }).format(new Date());
     updateSecurityNavigation();
+    if (account.mustChangePassword) { expansion?.showPasswordGate(); return; }
     if (mfaRequired) await showSecurity(false);
     else await showRequests();
   }
@@ -199,21 +207,24 @@
   }
 
   function updateSecurityNavigation() {
-    const restricted = mfaRequired || !mfaEnabled;
+    const restricted = account.mustChangePassword || mfaRequired || !mfaEnabled;
     $('requests-nav').disabled = restricted || backupCodes.length > 0;
     $('mobile-requests-nav').disabled = restricted || backupCodes.length > 0;
     for (const id of ['completed-nav', 'mobile-completed-nav', 'archived-nav', 'mobile-archived-nav', 'tracking-nav', 'mobile-tracking-nav', 'portfolio-nav', 'mobile-portfolio-nav']) $(id).disabled = restricted || backupCodes.length > 0;
-    $('automation-nav').disabled = restricted || backupCodes.length > 0;
-    $('mobile-automation-nav').disabled = restricted || backupCodes.length > 0;
+    $('automation-nav').disabled = account.role !== 'owner' || restricted || backupCodes.length > 0;
+    $('automation-nav').hidden = account.role !== 'owner';
+    $('mobile-automation-nav').disabled = account.role !== 'owner' || restricted || backupCodes.length > 0;
+    $('mobile-automation-nav').hidden = account.role !== 'owner';
     $('requests-nav').title = restricted ? 'Önce iki aşamalı doğrulamayı tamamla' : '';
     $('automation-nav').title = restricted ? 'Önce iki aşamalı doğrulamayı tamamla' : '';
     $('mfa-required-notice').hidden = !restricted;
-    $('assistant-card').hidden = restricted || backupCodes.length > 0;
+    $('assistant-card').hidden = account.role !== 'owner' || restricted || backupCodes.length > 0;
     $('mfa-setup-panel').hidden = (mfaEnabled && !changingMfaDevice) || backupCodes.length > 0;
     $('mfa-enabled-panel').hidden = !mfaEnabled || changingMfaDevice || backupCodes.length > 0;
     $('setup-existing-code-field').hidden = !changingMfaDevice;
     $('setup-existing-code').required = changingMfaDevice;
     $('cancel-mfa-change').hidden = !changingMfaDevice;
+    expansion?.updateNavigation(restricted || backupCodes.length > 0, currentSection);
     $('security-badge').textContent = mfaEnabled ? '◈ İki aşamalı koruma etkin' : '◈ Kurulumu tamamla';
     $('security-badge').classList.toggle('is-enabled', mfaEnabled);
     $('requests-nav').classList.toggle('active', currentSection === 'requests' && currentFolder === 'active');
@@ -230,9 +241,10 @@
   }
 
   async function showRequests(folder = 'active') {
-    if (!authenticated || mfaRequired || !mfaEnabled || backupCodes.length) return;
+    if (!authenticated || account.mustChangePassword || mfaRequired || !mfaEnabled || backupCodes.length) return;
     const changed = currentFolder !== folder;
     currentFolder = ['active', 'completed', 'archived'].includes(folder) ? folder : 'active';
+    expansion?.hideSections();
     clearDeleteDialog();
     if (changed) {
       $('status-filter').value = 'all';
@@ -251,6 +263,7 @@
 
   async function showSecurity(focus = true) {
     if (!authenticated) return;
+    expansion?.hideSections();
     clearDeleteDialog();
     currentSection = 'security';
     $('requests').hidden = true;
@@ -261,6 +274,7 @@
     updateSecurityNavigation();
     if (focus) $('security-title').focus({ preventScroll: true });
     if (securityLoading) return;
+    if (account.mustChangePassword) { expansion?.showPasswordGate(); return; }
     const generation = authGeneration;
     securityLoading = true;
     try {
@@ -312,7 +326,8 @@
   }
 
   async function showAutomation() {
-    if (!authenticated || mfaRequired || !mfaEnabled || backupCodes.length) return;
+    if (!authenticated || account.mustChangePassword || mfaRequired || !mfaEnabled || backupCodes.length) return;
+    expansion?.hideSections();
     clearDeleteDialog();
     currentSection = 'automation';
     $('requests').hidden = true;
@@ -641,7 +656,7 @@
     const query = $('search').value.trim().toLocaleLowerCase('tr-TR');
     const filter = $('status-filter').value;
     const filtered = leads.filter((lead) => (
-      belongsToFolder(lead) && (currentFolder !== 'active' || filter === 'all' || lead.status === filter)
+      (expansion?.matchesLead(lead) ?? true) && belongsToFolder(lead) && (currentFolder !== 'active' || filter === 'all' || lead.status === filter)
       && (!query || [lead.brand, lead.name, lead.email, lead.phone].some((value) => String(value || '').toLocaleLowerCase('tr-TR').includes(query)))
     )).sort((a, b) => (Date.parse(currentFolder === 'completed' ? b.completedAt : b.createdAt) || 0) - (Date.parse(currentFolder === 'completed' ? a.completedAt : a.createdAt) || 0));
     $('visible-count').textContent = String(filtered.length);
@@ -667,6 +682,9 @@
       button.append(avatar, summary);
       button.addEventListener('click', () => selectLead(lead.id));
       item.append(button);
+      const deliver = el('button', 'lead-deliver-button', 'Teslim et ↗'); deliver.type = 'button';
+      deliver.addEventListener('click', () => { selectLead(lead.id); const area = $('detail-content').querySelector('.delivery-editor'); if (area) { area.open = true; area.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+      item.append(deliver);
       fragment.append(item);
     }
     $('leads-list').replaceChildren(fragment);
@@ -835,7 +853,7 @@
     notes.addEventListener('input', trackDraft);
     payment.addEventListener('input', trackDraft);
     trackDraft();
-    const deleteButton = el('button', 'button danger-outline', 'Talebi kalıcı olarak sil');
+    const deleteButton = el('button', 'button danger-outline', 'Talebi çöp kutusuna taşı');
     deleteButton.type = 'button';
     deleteButton.disabled = savingLeads.has(lead.id) || deletingLeads.has(lead.id);
     deleteButton.addEventListener('click', () => openDeleteDialog(lead));
@@ -904,8 +922,10 @@
       form.setAttribute('aria-busy', 'true');
     }
     const deleteArea = el('div', 'detail-delete');
-    deleteArea.append(deleteButton, el('p', 'field-help', 'Kaydı saklamak için durumu “Tamamlandı” yap. Silme işlemi kalıcıdır.'));
-    content.append(form, trackingEditor(lead), deliveryEditor(lead), deleteArea);
+    deleteArea.append(deleteButton, el('p', 'field-help', 'Kaydı saklamak için durumu “Tamamlandı” yap. Çöp kutusundaki kayıtlar 30 gün içinde geri yüklenebilir.'));
+    const quickDelivery = el('button', 'button primary detail-delivery-shortcut', 'Proje teslim et ↗'); quickDelivery.type = 'button';
+    quickDelivery.addEventListener('click', () => { const area = $('detail-content').querySelector('.delivery-editor'); if (area) { area.open = true; area.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+    content.append(quickDelivery, form, trackingEditor(lead), deliveryEditor(lead), expansion?.leadTools(lead) || document.createDocumentFragment(), deleteArea);
     $('detail-empty').hidden = true;
     $('detail-content').hidden = false;
     $('detail-content').replaceChildren(content);
@@ -921,7 +941,7 @@
     $('delete-confirmation').value = '';
     $('delete-confirmation').disabled = false;
     $('delete-confirm').disabled = true;
-    $('delete-confirm').textContent = 'Kalıcı olarak sil';
+    $('delete-confirm').textContent = 'Çöp kutusuna taşı';
     $('delete-cancel').disabled = false;
     $('delete-form').removeAttribute('aria-busy');
     message($('delete-message'));
@@ -957,7 +977,7 @@
     $('delete-form').setAttribute('aria-busy', 'true');
     message($('delete-message'));
     try {
-      await api(`/api/admin/leads/${encodeURIComponent(id)}`, { method: 'DELETE', csrf: true, body: { confirmation: 'SİL' } });
+      await api('/api/admin/trash', { method: 'POST', csrf: true, body: { type: 'lead', id } });
       if (generation !== authGeneration) return;
       invalidateLeadLoad();
       leads = leads.filter((lead) => lead.id !== id);
@@ -971,7 +991,7 @@
       clearAutomation();
       if (currentSection === 'automation') void loadAutomation();
       if (request === deleteRequest) clearDeleteDialog();
-      message($('dashboard-message'), 'Talep ve ilişkili kayıtları kalıcı olarak silindi.', 'success');
+      message($('dashboard-message'), 'Talep çöp kutusuna taşındı. 30 gün içinde geri yükleyebilirsin.', 'success');
     } catch (error) {
       if (generation !== authGeneration || handleAuthError(error)) return;
       if (request === deleteRequest) message($('delete-message'), error.message);
@@ -983,7 +1003,7 @@
         deleting = false;
         $('delete-confirmation').disabled = false;
         $('delete-confirm').disabled = $('delete-confirmation').value.trim().toLocaleUpperCase('tr-TR') !== 'SİL';
-        $('delete-confirm').textContent = 'Kalıcı olarak sil';
+        $('delete-confirm').textContent = 'Çöp kutusuna taşı';
         $('delete-form').removeAttribute('aria-busy');
       }
     }
@@ -1000,16 +1020,18 @@
     projectEditorRequest += 1;
     trackingDrafts.clear();
     shareLinks.clear();
+    orderCredentials.clear();
     deliveryLeadIds.clear();
     for (const id of ['project-list', 'project-editor', 'tracking-summary', 'tracking-reminders', 'tracking-board']) $(id).replaceChildren();
     for (const id of ['portfolio-message', 'tracking-message']) message($(id));
   }
 
-  function studioAllowed() { return authenticated && !mfaRequired && mfaEnabled && !backupCodes.length; }
+  function studioAllowed() { return authenticated && !account.mustChangePassword && !mfaRequired && mfaEnabled && !backupCodes.length; }
 
   function showStudioSection(section) {
-    if (!studioAllowed()) return false;
+    if (!studioAllowed() && !(section === 'security' && authenticated)) return false;
     clearDeleteDialog();
+    expansion?.hideSections();
     currentSection = section;
     for (const [id, name] of [['requests', 'requests'], ['security-section', 'security'], ['automation-section', 'automation'], ['portfolio-section', 'portfolio'], ['tracking-section', 'tracking']]) $(id).hidden = section !== name;
     updateSecurityNavigation();
@@ -1148,22 +1170,26 @@
       ['challenge', 'İhtiyaç / çıkış noktası', { tag: 'textarea', maxLength: 3000 }],
       ['approach', 'Yaratıcı yaklaşım', { tag: 'textarea', maxLength: 3000 }],
       ['result', 'Sonuç', { tag: 'textarea', maxLength: 3000 }],
+      ['sortOrder', 'Görünüm sırası (küçük sayı önce)', { type: 'number', value: 0 }],
     ]) {
       const input = field(label, `project-${name}`, { ...config, value: project?.[name] || (name === 'category' ? 'production' : '') });
       controls[name] = input.control; form.append(input.wrapper);
     }
+    const featuredLabel = el('label', 'studio-checkbox');
+    const featured = el('input'); featured.type = 'checkbox'; featured.id = 'project-featured'; featured.checked = project?.featured === true;
+    featuredLabel.append(featured, el('span', '', 'Ana sayfada öne çıkar'));
     const publishLabel = el('label', 'studio-checkbox');
     const published = el('input'); published.id = 'project-published'; published.type = 'checkbox'; published.checked = project?.published === true;
     publishLabel.append(published, el('span', '', 'Projeyi portfolyoda yayına al'));
     const status = el('p', 'message'); status.setAttribute('role', 'status');
     const save = el('button', 'button primary', project ? 'Projeyi kaydet ↗' : 'Taslağı oluştur ↗'); save.type = 'submit';
-    form.append(publishLabel, save, status);
+    form.append(publishLabel, featuredLabel, save, status);
     form.addEventListener('input', () => { projectDirty = true; message(status); });
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (save.disabled || !form.reportValidity()) return;
       const generation = authGeneration;
-      const payload = Object.fromEntries(Object.entries(controls).map(([key, control]) => [key, control.value.trim()])); payload.published = published.checked;
+      const payload = Object.fromEntries(Object.entries(controls).map(([key, control]) => [key, control.value.trim()])); payload.published = published.checked; payload.featured = featured.checked; payload.sortOrder = Number(controls.sortOrder.value || 0);
       if (!payload.slug) delete payload.slug;
       save.disabled = true;
       for (const control of form.elements) control.disabled = true;
@@ -1183,17 +1209,17 @@
     editor.append(form);
     if (!project) return;
     if (project.published) {
-      const link = el('a', 'button secondary', 'Yayındaki projeyi aç ↗'); link.href = `/isler/${encodeURIComponent(project.slug)}`; link.target = '_blank'; link.rel = 'noopener'; editor.append(link);
+      const link = el('a', 'button secondary', 'Yayındaki projeyi aç ↗'); link.href = `/portfolyo/${encodeURIComponent(project.slug)}`; link.target = '_blank'; link.rel = 'noopener'; editor.append(link);
     }
     const mediaSection = el('section', 'project-media-section');
     mediaSection.append(el('h3', '', 'Kapağın. Filmin. Farkın.'), el('p', 'field-help', 'Görseller: JPG, PNG veya WebP · en fazla 8 MB. Videolar: MP4 veya WebM · en fazla 100 MB. Önce ve sonra alanlarına iki görsel veya iki video ekleyince karşılaştırma görünür. Yeni dosya, aynı alandaki eski dosyanın yerini alır.'));
     for (const [role, label] of [['cover', 'Proje kapağı'], ['video', 'Ana proje videosu'], ['before', 'Önce / ham görüntü'], ['after', 'Sonra / son kurgu']]) mediaSection.append(projectMediaControl(project, role, label));
     editor.append(mediaSection);
-    const danger = el('details', 'studio-danger'); danger.append(el('summary', '', 'Projeyi kalıcı olarak sil'));
+    const danger = el('details', 'studio-danger'); danger.append(el('summary', '', 'Projeyi çöp kutusuna taşı'));
     const deleteForm = el('form', 'studio-form');
-    deleteForm.append(el('p', 'field-help', 'Proje ve tüm dosyaları silinir. Sayfayı yayından kaldırmak için yukarıdaki yayın seçeneğini kapatabilirsin.'));
-    const confirmation = field('Kalıcı silmek için SİL yaz', 'project-delete-confirmation', { required: true, maxLength: 3 });
-    const remove = el('button', 'button danger-outline', 'Projeyi ve dosyalarını sil'); remove.type = 'submit'; remove.disabled = true;
+    deleteForm.append(el('p', 'field-help', 'Proje yayından kaldırılır ve dosyalarıyla birlikte 30 günlüğüne çöp kutusunda saklanır.'));
+    const confirmation = field('Çöp kutusuna taşımak için SİL yaz', 'project-delete-confirmation', { required: true, maxLength: 3 });
+    const remove = el('button', 'button danger-outline', 'Çöp kutusuna taşı'); remove.type = 'submit'; remove.disabled = true;
     const deleteMessage = el('p', 'message'); deleteMessage.setAttribute('role', 'status');
     confirmation.control.addEventListener('input', () => { remove.disabled = confirmation.control.value !== 'SİL'; });
     deleteForm.append(confirmation.wrapper, remove, deleteMessage);
@@ -1201,11 +1227,11 @@
       event.preventDefault(); if (remove.disabled || confirmation.control.value !== 'SİL') return;
       const generation = authGeneration; remove.disabled = true;
       try {
-        await api(`/api/admin/projects/${encodeURIComponent(project.id)}`, { method: 'DELETE', csrf: true, body: { confirmation: 'SİL' } });
+        await api('/api/admin/trash', { method: 'POST', csrf: true, body: { type: 'project', id: project.id } });
         if (generation !== authGeneration) return;
         projects = projects.filter((entry) => entry.id !== project.id);
         if (editorRequest === projectEditorRequest) { selectedProjectId = null; projectDirty = false; renderProjectEditor(null); }
-        renderProjects(); message($('portfolio-message'), 'Proje ve dosyaları silindi.', 'success');
+        renderProjects(); message($('portfolio-message'), 'Proje çöp kutusuna taşındı.', 'success');
       } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(deleteMessage, error.message); }
       finally { if (generation === authGeneration) remove.disabled = false; }
     });
@@ -1249,13 +1275,13 @@
     if (media) {
       const remove = el('button', 'text-button', 'Bu dosyayı kaldır'); remove.type = 'button';
       remove.addEventListener('click', async () => {
-        if (!window.confirm(`${label} dosyası kalıcı olarak kaldırılsın mı?`)) return;
+        if (!window.confirm(`${label} dosyası çöp kutusuna taşınsın mı? 30 gün içinde geri yükleyebilirsin.`)) return;
         const generation = authGeneration; remove.disabled = true;
         try {
-          const result = await api(path, { method: 'DELETE', csrf: true, body: { confirmation: 'SİL' } });
+          const result = await api('/api/admin/trash', { method: 'POST', csrf: true, body: { type: 'projectMedia', id: project.id, role } });
           if (generation !== authGeneration) return;
           if (result.project) { const index = projects.findIndex((entry) => entry.id === project.id); if (index >= 0) projects[index] = result.project; if (!projectDirty && selectedProjectId === project.id) renderProjectEditor(result.project); }
-          message(status, 'Dosya kaldırıldı.', 'success');
+          message(status, 'Dosya çöp kutusuna taşındı.', 'success'); if (!projectDirty) await loadProjects();
         } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(status, error.message); }
         finally { if (generation === authGeneration) remove.disabled = false; }
       }); container.append(remove);
@@ -1294,7 +1320,7 @@
       ['stage', 'İşin aşaması', { tag: 'select', options: stages }],
       ['nextActionAt', 'Sonraki takip zamanı', { type: 'datetime-local' }],
       ['nextActionNote', 'Sonraki adım / hatırlatma', { tag: 'textarea', maxLength: 1000, placeholder: 'Teklifi görüş, çekim tarihini netleştir…' }],
-      ['agreedAmount', 'Anlaşılan toplam (TL)', { maxLength: 12, placeholder: 'Henüz belli değilse boş bırak' }],
+      ['agreedAmount', 'Ana anlaşma tutarı (TL)', { maxLength: 12, placeholder: 'Henüz belli değilse boş bırak' }],
       ['receivedAmount', 'Alınan toplam ödeme (TL)', { required: true, maxLength: 12 }],
       ['paymentDueDate', 'Kalan ödeme tarihi', { type: 'date' }],
     ]) {
@@ -1329,6 +1355,7 @@
       } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(status, error.message); }
       finally { if (generation === authGeneration) save.disabled = false; }
     });
+    if (tracking.revisionFeesCents) form.append(el('p', 'revision-policy', `Ek revizyon: ${moneyFormat.format(tracking.revisionFeesCents / 100)} · ${tracking.effectiveAgreedAmountCents === null ? 'Ana anlaşma tutarı henüz girilmedi.' : `Güncel anlaşma: ${moneyFormat.format(tracking.effectiveAgreedAmountCents / 100)}`}`));
     form.append(balance, help, save, status); section.append(form); return section;
   }
 
@@ -1352,6 +1379,7 @@
 
   function renderTracking(allLeads) {
     renderTrackingCount(allLeads);
+    allLeads = allLeads.filter((lead) => expansion?.matchesLead(lead) ?? true);
     const active = allLeads.filter((lead) => lead.status !== 'completed' && lead.status !== 'archived');
     const due = allLeads.filter((lead) => trackingOf(lead).actionOverdue || trackingOf(lead).paymentOverdue);
     const balance = allLeads.reduce((sum, lead) => sum + (trackingOf(lead).remainingCents || 0), 0);
@@ -1375,12 +1403,14 @@
       const heading = el('h2', '', title); heading.append(el('span', '', entries.length)); column.append(heading);
       if (!entries.length) column.append(el('p', 'tracking-column-empty', 'Bu aşama hazır.'));
       for (const lead of entries) {
-        const card = el('button', 'tracking-lead-card'); card.type = 'button';
+        const card = el('div', 'tracking-lead-card');
         const tracking = trackingOf(lead); card.append(el('strong', '', lead.brand || 'İsimsiz marka'), el('span', '', lead.name || 'Proje talebi'));
         if (tracking.nextActionAt) card.append(el('small', tracking.actionOverdue ? 'attention-text' : '', `↗ ${readableDate(tracking.nextActionAt, true)}`));
         if (tracking.nextActionNote) card.append(el('span', 'tracking-card-note', tracking.nextActionNote));
         if (tracking.agreedAmountCents !== null) card.append(el('small', '', `${moneyFormat.format(tracking.remainingCents / 100)} kalan`));
-        card.addEventListener('click', () => openTrackedLead(lead)); column.append(card);
+        const inspect = el('button', 'text-button', 'Projeyi aç ↗'); inspect.type = 'button'; inspect.addEventListener('click', () => openTrackedLead(lead));
+        const deliver = el('button', 'button secondary tracking-deliver', 'Teslim et ↗'); deliver.type = 'button'; deliver.addEventListener('click', async () => { await openTrackedLead(lead); const area = $('detail-content').querySelector('.delivery-editor'); if (area) { area.open = true; area.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+        card.append(inspect, deliver); column.append(card);
       }
       board.append(column);
     }
@@ -1397,7 +1427,7 @@
   function deliveryEditor(lead) {
     const section = el('details', 'lead-studio-block delivery-editor');
     section.append(el('summary', '', 'Müşteriye özel teslim ve onay ↗'));
-    section.append(el('p', 'field-help', 'Dosyalarını özel bir bağlantıyla paylaş. Müşterin revizyon notu bırakabilir veya mevcut sürümü onaylayabilir. Müşteri onayı işi otomatik tamamlamaz.'));
+    section.append(el('p', 'field-help', 'Müşterin sipariş numarası ve erişim koduyla veya özel bağlantıyla teslimini açar. İlk 3 revizyon dahildir; sonraki her revizyon 1.000 TL. Müşteri onayı işi otomatik tamamlamaz.'));
     const list = el('div', 'delivery-list'); const messageNode = el('p', 'message'); messageNode.setAttribute('role', 'status');
     const refresh = el('button', 'button secondary', 'Teslimleri yenile ↻'); refresh.type = 'button';
     const generation = authGeneration;
@@ -1433,6 +1463,7 @@
         const result = await api(`/api/admin/leads/${encodeURIComponent(lead.id)}/deliveries`, { method: 'POST', csrf: true, body: { title: title.control.value.trim(), description: description.control.value.trim(), expiresInDays: Number(expires.control.value) } });
         if (generation !== authGeneration) return;
         if (result.delivery?.id && typeof result.sharePath === 'string' && /^\/teslim#[a-f0-9]{64}$/.test(result.sharePath)) shareLinks.set(result.delivery.id, new URL(result.sharePath, location.origin).href);
+        if (result.delivery?.id && result.orderNumber && result.accessCode) orderCredentials.set(result.delivery.id, { orderNumber: result.orderNumber, accessCode: result.accessCode });
         confirm.checked = false; await load(); message(messageNode, 'Özel bağlantı oluşturuldu. Aşağıdaki bağlantıyı şimdi güvenle kopyala ve müşterinle kendin paylaş.', 'success');
       } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(messageNode, error.message); }
       finally { if (generation === authGeneration) create.disabled = false; }
@@ -1445,6 +1476,13 @@
     const statusNames = { pending: 'İnceleme bekliyor', revision_requested: 'Revizyon istendi', approved: 'Müşteri onayladı' };
     const expired = Date.parse(delivery.expiresAt) <= Date.now(); const inactive = Boolean(delivery.revokedAt) || expired;
     card.append(el('h3', '', delivery.title), el('span', 'delivery-status', delivery.revokedAt ? 'Bağlantı kapatıldı' : expired ? 'Bağlantı süresi doldu' : statusNames[delivery.status] || 'İnceleme bekliyor'), el('p', 'field-help', `Sürüm ${delivery.version} · Son geçerlilik: ${readableDate(delivery.expiresAt, true)}`));
+    const preview = el('a', 'button secondary', 'Müşteri görünümü ↗'); preview.href = `/teslim#preview=${encodeURIComponent(delivery.id)}`; preview.target = '_blank'; preview.rel = 'noopener'; card.append(preview);
+    const revisions = delivery.revisions || { included: 3, used: 0, remaining: 3, nextFeeCents: 0, extraFeeCentsTotal: 0 };
+    card.append(el('p', 'revision-policy', `3 revizyon dahil · Kullanılan ${revisions.used} · Kalan ${revisions.remaining} · Sonrasında revizyon başına 1.000 TL`));
+    if (revisions.extraFeeCentsTotal) card.append(el('p', 'field-help', `Ek revizyon toplamı: ${moneyFormat.format(revisions.extraFeeCentsTotal / 100)}. Tahsilat olarak otomatik kaydedilmez.`));
+    const credentials = orderCredentials.get(delivery.id);
+    if (delivery.orderNumber || credentials) card.append(el('p', 'delivery-order-number', `Sipariş no: ${credentials?.orderNumber || delivery.orderNumber}`));
+    if (credentials && !inactive) { const box = el('div', 'delivery-share'); box.append(el('strong', '', 'Müşteriye erişim bilgileri')); const input = el('input'); input.readOnly = true; input.value = `${credentials.orderNumber} / ${credentials.accessCode}`; input.setAttribute('aria-label', 'Sipariş numarası ve erişim kodu'); const copy = el('button', 'button secondary', 'Bilgileri kopyala'); copy.type = 'button'; copy.addEventListener('click', async () => { const text = `Projen: ${location.origin}/teslim\nSipariş numarası: ${credentials.orderNumber}\nErişim kodu: ${credentials.accessCode}`; try { await navigator.clipboard.writeText(text); } catch { input.focus(); input.select(); } }); box.append(input, copy, el('p', 'field-help', 'Erişim kodu yalnızca bu oturumda gösterilir. Güvenle kopyalayıp müşterinle özel paylaş.')); card.append(box); }
     if (delivery.description) card.append(el('p', 'delivery-note', delivery.description));
     const status = el('p', 'message'); status.setAttribute('role', 'status');
     const share = shareLinks.get(delivery.id);
@@ -1465,7 +1503,7 @@
         remove.addEventListener('click', async () => {
           if (!window.confirm('Bu dosya kaldırılsın mı? Müşteri onayı sıfırlanacak ve yeni sürüm oluşacak.')) return;
           const generation = authGeneration; remove.disabled = true;
-          try { await api(`/api/admin/deliveries/${encodeURIComponent(delivery.id)}/files/${encodeURIComponent(asset.id)}`, { method: 'DELETE', csrf: true, body: {} }); if (generation === authGeneration) await reload(); }
+          try { await api('/api/admin/trash', { method: 'POST', csrf: true, body: { type: 'deliveryAsset', id: asset.id } }); if (generation === authGeneration) await reload(); }
           catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(status, error.message); }
           finally { if (generation === authGeneration) remove.disabled = false; }
         }); row.append(remove);
@@ -1488,7 +1526,8 @@
     }
     if (delivery.feedback?.length) {
       const history = el('details', 'delivery-feedback'); history.append(el('summary', '', `Müşteri geri bildirimleri (${delivery.feedback.length})`)); const entries = el('ol');
-      for (const entry of delivery.feedback) { const item = el('li'); item.append(el('strong', '', entry.action === 'approve' ? '✓ Sürüm onaylandı' : '↗ Revizyon isteği'), el('small', '', `Sürüm ${entry.version} · ${readableDate(entry.createdAt, true)}`), el('p', '', entry.message || 'Ek not bırakılmadı.')); entries.append(item); }
+      for (const entry of delivery.feedback) { const item = el('li'); item.append(el('strong', '', entry.action === 'approve' ? '✓ Sürüm onaylandı' : '↗ Revizyon isteği'), el('small', '', `Sürüm ${entry.version} · ${readableDate(entry.createdAt, true)}`), el('p', '', entry.message || 'Ek not bırakılmadı.')); if (entry.roundNumber) item.append(el('small', '', `Revizyon ${entry.roundNumber}${entry.feeCents ? ` · ${moneyFormat.format(entry.feeCents / 100)} ek ücret` : ' · Dahil'}`));
+        for (const note of entry.notes || []) { const seconds = Number(note.timeSeconds || 0); item.append(el('p', 'timestamp-note', `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')} · ${note.message || note.text || ''}`)); } entries.append(item); }
       history.append(entries); card.append(history);
     }
     if (!inactive) {
@@ -1598,6 +1637,7 @@
     event.returnValue = '';
   });
 
+  expansion = window.OrdvisAdminExpansion({ $, el, field, message, api, uploadFile, moneyFormat, readableDate, handleAuthError, generation: () => authGeneration, account: () => account, allowed: studioAllowed, section: () => currentSection, showSection: showStudioSection, showDashboard, refreshLeads, refreshTracking: loadTracking, rerender: renderList, openLead: openTrackedLead });
   api('/api/admin/session').then(showDashboard).catch((error) => {
     showLogin(error.status === 401 ? '' : error.message, error.code !== 'ADMIN_NOT_CONFIGURED');
   });

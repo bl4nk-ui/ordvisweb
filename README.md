@@ -2,6 +2,8 @@
 
 Çok sayfalı ajans sitesi, panelden yönetilen portfolyo, özel müşteri teslim alanı ve iki aşamalı korunan **stüdyo yönetim paneli**. Kontrollü asistan raporu ve saatlik Groq özeti içerir. Teklif formu bilgileri aynı sunucudaki SQLite veritabanına kaydeder; WhatsApp'a yönlendirme yapmaz. Groq trafiğinin güvenli proxy desteği için sabit sürümlü `undici` bağımlılığı kullanılır. Node.js **22.13 veya üzeri**, tercihen güncel Node.js LTS gereklidir (Node 24 ile doğrulandı).
 
+Yeni **sipariş erişimi, ortak hesapları, 3 revizyon + 1.000 TL ek tur, teklif PDF’i, referanslar ve çöp kutusu** için [Stüdyo kullanım rehberini](docs/STUDIO_GUIDE.md) okuyun.
+
 ## Kendi bilgisayarında başlatma
 
 VS Code terminalinde `package.json` bulunan **ordvisweb** klasöründe çalıştırın:
@@ -20,7 +22,7 @@ Terminal `Ordvis Creative listening on 3000` yazınca aynı bilgisayarda:
 - Site: `http://127.0.0.1:3000`
 - Panel: `http://127.0.0.1:3000/admin`
 
-İlk panel girişinde **Güvenlik** ekranı açılır. Mevcut parolanızı doğrulayın, ekrandaki anahtarı Google Authenticator / Microsoft Authenticator / benzer bir TOTP uygulamasına **manuel** ekleyin ve uygulamanın 6 haneli kodunu doğrulayın. Kurtarma kodlarını çevrimdışı güvenli bir yerde saklayın. Bu adım tamamlanmadan talepler ve dışa aktarım kilitlidir. Sonraki girişler parola + Authenticator veya kullanılmamış bir kurtarma kodu gerektirir.
+İlk panel girişinde **Güvenlik** ekranı açılır. Mevcut parolanızı doğrulayın, ekrandaki anahtarı Google Authenticator / Microsoft Authenticator / benzer bir TOTP uygulamasına **manuel** ekleyin ve uygulamanın 6 haneli kodunu doğrulayın. Kurtarma kodlarını çevrimdışı güvenli bir yerde saklayın. Bu adım tamamlanmadan talepler kilitlidir; dışa aktarım ayrıca yalnız ana yöneticiye açıktır. Ortaklar Ekip bölümünden ayrı hesaplarla eklenir; ilk girişte kendi parolalarını değiştirip kendi MFA kurulumlarını tamamlar. Sonraki girişler parola + Authenticator veya kullanılmamış bir kurtarma kodu gerektirir.
 
 Terminali açık bırakın; durdurmak için Ctrl+C. `npm run dev` ve `npm start` sayfaları otomatik oluşturur. Güncelleme için sunucuyu durdurun, `git pull origin main`, `npm ci`, `npm run dev` çalıştırın. Mevcut hesabı yeniden kurmanız gerekmez. Port doluysa PowerShell'de `$env:PORT=3001; npm run dev`, Bash'te `PORT=3001 npm run dev` kullanın.
 
@@ -49,7 +51,7 @@ Yerel değişiklikler `git stash list` içinde korunur; `.data/` içindeki hesap
 - Tahsil edilen tutarı örneğin **12500,50** veya **12500.50** yazın; binlik ayıracı kullanmayın. Tutar sıfırdan büyük, en fazla **999999999,99 TL** olmalıdır. Ödeme sunucuda doğrulanır ve kayan nokta hatası olmaması için tam sayı kuruş olarak saklanır; eksik veya geçersiz tutarda durum değişmez.
 - Tamamlanan işler ana gelen kutusuna karışmaz; kendi bölümünden aranabilir, ödeme ve notları düzenlenebilir. İş yeniden **Yeni** veya **Görüşülüyor** yapılırsa aktif bölüme döner; girilmiş tahsilat ve ilk tamamlanma tarihi korunur. Tutar kaydı o iş için girilen toplam tahsilattır; ayrı ödeme hareketleri defteri değildir.
 - Eski **Arşiv** kayıtları olduğu gibi korunur ve ayrı **Eski arşiv** bölümünde erişilebilir. Bunlara otomatik olarak ödeme veya tamamlanma tarihi atanmaz. Eski arşivden bir işi tamamlamak da ödeme gerektirir.
-- **Talebi sil**, seçili kaydı açık onaydan sonra kalıcı olarak kaldırır; bağlı otomatik özet ve özetleme işi de aynı veritabanı işleminde temizlenir. Bu işlem geri alınamaz. Yalnız oturum açmış ve MFA doğrulamış yönetici, aynı origin ve CSRF kontrolüyle silebilir.
+- **Çöp kutusuna taşı**, talebi 30 gün geri yüklenebilir şekilde kaldırır ve müşteri erişimini kapatır. Kalıcı silme yalnız ana yöneticiye ve açık SİL onayına açıktır; bağlı teslimler, özetler ve dosyalar da temizlenir. Eski kalıcı DELETE API’si owner yetkisiyle korunur.
 - Tamamlanan ve arşivlenen işler otomatik Groq kuyruğuna alınmaz; iş sürerken tamamlanan veya silinen kayıt için sonuç yeniden oluşturulmaz. Tahsilat alanı Groq'a veya indirilen asistan raporuna aktarılmaz.
 - Veri yapısı ilk açılışta işlem bütünlüğü korunarak güncellenir; mevcut yönetici, MFA, talepler, notlar ve özetler korunur. Güncellemeden önce sunucuyu durdurup tüm `DATA_DIR` klasörünü güvenli şekilde yedekleyin.
 
@@ -59,8 +61,8 @@ Kayıtlar varsayılan olarak **`.data/ordvis.sqlite`** dosyasındadır. **`.data
 
 1. `/admin` → **Portfolyo** bölümünde proje oluşturun. Başlık, kategori, özet ve isterseniz müşteri adı, amaç, yaklaşım ve sonuç metinlerini girin. Kayıt başlangıçta taslaktır.
 2. Kapağı JPG/PNG/WebP olarak yükleyin (en fazla **8 MiB**). Ana video MP4/WebM olabilir (en fazla **100 MiB**). Gerçek önce/sonra karşılaştırması için ilgili iki dosyayı ekleyin; desteklenen görseller de kullanılabilir.
-3. **Yayına al** seçeneğini kaydedince proje `/isler` sayfasında ve `/isler/proje-baglantisi` adresinde görünür. Kategori filtreleri yalnız yayınlanan projeleri gösterir. Taslağa dönmek genel API ve dosya erişimini kapatır; daha önce ziyaretçilerin indirdiği kopyalar geri alınamaz.
-4. Projeyi veya bir dosyayı panelden silebilirsiniz. Silme bağlı dosyaları da kaldırır. Yalnız paylaşma hakkınız olan, müşteri izni alınmış işleri yayınlayın. Başlangıçta örnek müşteri/proje üretilmez.
+3. **Yayına al** seçeneğini kaydedince proje `/portfolyo` sayfasında ve `/portfolyo/proje-baglantisi` adresinde görünür. Kategori filtreleri yalnız yayınlanan projeleri gösterir. Taslağa dönmek genel API ve dosya erişimini kapatır; daha önce ziyaretçilerin indirdiği kopyalar geri alınamaz.
+4. Projeyi veya bir dosyayı panelden 30 günlük çöp kutusuna taşıyabilir, geri yükleyebilir veya ana yönetici olarak kalıcı temizleyebilirsiniz. Yalnız paylaşma hakkınız olan, müşteri izni alınmış işleri yayınlayın. Başlangıçta örnek müşteri/proje üretilmez.
 
 Portfolyo kaydı ve medya dosyaları GitHub'a yazılmaz; çalışan sunucunun `DATA_DIR` dizininde tutulur. Bu içerikler normal site güncellemelerinde korunur; yeni sunucuya taşırken tüm veri dizinini taşıyın. Taslak önizlemeleri yalnız MFA doğrulanmış yöneticiye açıktır.
 
@@ -77,7 +79,7 @@ Tahsilat toplam değerdir; taksit hareketleri, muhasebe defteri veya çevrimiçi
 1. Talep detayındaki teslim alanında başlık, açıklama ve **1–30 gün** erişim süresiyle bağlantı oluşturun (varsayılan 7 gün). Aynı talep için yeni bağlantı oluşturmak önceki bağlantıları ve görüntüleme oturumlarını kapatır.
 2. MP4/WebM, JPG/PNG/WebP veya PDF yükleyin. Görseller 8 MiB, video/PDF 100 MiB; teslim başına en fazla **20 dosya** kabul edilir. Toplam disk kullanımı için hosting kotası ve yedekleme düzeni gerekir. Video dönüştürme, sıkıştırma ve zararlı yazılım taraması yapılmaz; dosyalar yetkili yönetici tarafından yüklenir.
 3. Oluşturulan özel bağlantıyı kopyalayıp müşteriye kendiniz iletin. Bağlantı sırrı **yalnız oluşturulduğunda** gösterilir; kaybolursa yeni bağlantı oluşturun. Yerel bilgisayardaki adresler yalnız o bilgisayarda açılır; müşterinin erişmesi için site HTTPS ve kalıcı diskli bir sunucuda yayınlanmalıdır.
-4. Müşteri bağlantıda dosyaları görüntüler/indirir, zaman koduyla revizyon notu bırakır veya incelediği sürümü açık onayla kabul eder. Bu notlar ve sürüm/onay bilgisi admin panelinde görünür. Müşteriye telefon/e-posta, iç notlar, ödeme ve diğer talepler gösterilmez.
+4. Müşteri özel bağlantıyla veya sipariş numarası + özel erişim koduyla dosyaları görüntüler/indirir, zaman kodlu notlarını tek revizyon turunda toplar veya incelediği sürümü açık onayla kabul eder. Projede 3 tur dahildir; sonraki her tur açık ücret onayıyla 1.000 TL’dir. Bu notlar ve sürüm/onay bilgisi admin panelinde görünür. Müşteriye telefon/e-posta, iç notlar, ödeme ve diğer talepler gösterilmez.
 5. Dosya eklemek/silmek yeni sürüm oluşturur, önceki onayı sıfırlar ve mevcut medya oturumlarını iptal eder. Eski sürüme gönderilen onay reddedilir. Müşteri onayı tahsilat veya iş tamamlama işlemi yapmaz. Bağlantıyı panelden her an iptal edebilirsiniz.
 
 Bağlantı 256 bit rastgele sır içerir; veritabanında yalnız SHA-256 özeti tutulur. Sır URL'nin `#` bölümündedir; normal HTTP URL'sine/referrer'a gönderilmez. İstemci API'ye Authorization başlığıyla erişir; video/görsel için süreli, sürüme bağlı, HttpOnly/SameSite=Strict ve HTTPS'te Secure görüntüleme çerezi kullanılır. Bağlantıyı bilen herkes erişebilir; müşteriye hesap doğrulaması sunulmaz. Özel yanıtlar/dosyalar önbelleğe alınmaz, sayfa arama motorlarına kapalıdır ve üçüncü taraf kaynak kullanmaz. İptal, süre dolması ve talep silme erişimi kapatır; alınmış dosya kopyalarını geri alamaz.
@@ -154,13 +156,17 @@ Bu kontroller bir penetrasyon testi veya mutlak güvenlik garantisi değildir. D
 
 ## Sayfalar ve içerik
 
-`/`, `/produksiyon`, `/drone`, `/kurgu`, `/dijital`, `/paketler`, `/iletisim`, `/isler`, yayınlanmış `/isler/:slug`, özel bağlantıyla `/teslim` ve yönetici giriş sayfası `/admin`.
+`/`, `/produksiyon`, `/drone`, `/kurgu`, `/dijital`, `/paketler`, `/iletisim`, `/portfolyo`, yayınlanmış `/portfolyo/:slug`, özel bağlantıyla `/teslim` ve yönetici giriş sayfası `/admin`.
 
 - `scripts/build.mjs`: ortak sayfa şablonları; `content/` fiyat ve form kaynakları.
 - `public/*.html`: oluşturulan sayfalar. Şablon değişikliklerinde `npm run build` çalıştırın.
 - `public/style.css`, `public/app.js`: public site. `public/admin.*`: ayrı yönetim arayüzü.
 - `public/media/ordvis-logo.png`: paylaşılan logo referansından hazırlanan, amblem ve **ORDVIS / CREATIVE** yazısını birlikte taşıyan şeffaf web görseli; tüm sayfaların üst/alt kısmı ve panel aynı dosyayı kullanır. `ordvis-mark.png` yalnız amblemdir. `public/favicon.png` sekme simgesidir; logo dosyaları vektör kaynak değil raster web çıktılarıdır. En-boy oranını koruyun, yazıları tekrar bir fontla oluşturmayın.
 - `lib/store.mjs`, `lib/api.mjs`, `server.mjs`: kalıcı kayıt, yetki ve HTTP katmanı.
+- `lib/accounts.mjs`: kullanıcıya özel ortak hesapları, şifre yenileme ve bağımsız MFA.
+- `lib/operations-store.mjs`, `lib/operations-api.mjs`: atama/kapsam, teklif, müşteri logoları/yorumları, işlem geçmişi ve 30 günlük çöp kutusu.
+- `lib/quote-pdf.mjs`, `assets/fonts/`: sunucuda gerçek, logolu ve Türkçe karakterli PDF; font lisansı birlikte paketlenir.
+- `public/admin-expansion.js`: ekip ve operasyon arayüzleri, parola gösterme/değiştirme.
 - `lib/studio-store.mjs`, `lib/studio-api.mjs`: portfolyo, yapılandırılmış brief ve iş/ödeme takibi.
 - `lib/delivery-store.mjs`, `lib/delivery-api.mjs`, `lib/media-files.mjs`: özel teslim bağlantıları, sürüm/onay ve sınırlı akış dosya yükleme/Range sunumu.
 - `public/studio.*`: portfolyo, gerçek önce/sonra ve brief adımları; `public/delivery.*`: bağımsız müşteri teslim arayüzü.
@@ -196,3 +202,9 @@ Chromium ile 320/390/768/1440 px tüm sayfalar ve panel; gerçek form > veritaba
 Portfolyo/teslim/iş takibi güncellemesinde build ve tüm sözdizimi kontrolleri, **104 test** (86 mevcut + 18 yeni güvenlik/veri entegrasyon testi) ve bağımlılık taraması geçti; tarama 0 bilinen açık bildirdi. Yeni testler taslak/yayın ayrımını, medya imzası/boyutu/Range/HEAD erişimini, iptal edilen yükleme temizliğini, tam kuruş hesabını, yapılandırılmış brief mahremiyetini, token hashlerini, teslim oturumu kapsamını, sürüm/onay yarışlarını ve silme/çıkış sırasında devam eden yüklemelerin kayıt oluşturamamasını doğrular.
 
 Gerçek Chromium'da geçici SQLite/MFA ve oynatılabilir WebM ile panelden proje oluşturma → kapak/video/önce/sonra yükleme → yayınlama/gizleme → filtreli portfolyo ve senkron karşılaştırma; adımlı brief → kayıt → iş takibi/parçalı ödeme/gecikme uyarısı; özel bağlantı oluşturma → video → müşteri revizyon/onayı → panelde geri bildirim → yeni sürüm/iptal akışları doğrulandı. Ödeme ile tamamlanan işin ayrı klasöre taşınması da kontrol edildi. Genel sayfalar, proje detayı ve yeni panel bölümleri 1440/1024/900/390/320 px genişliklerde kontrol edildi; taşma, kırık görsel veya JavaScript/CSP hatası görülmedi. Brief Geri butonunun kontrastı düzeltildi. Gerçek müşteri verisi ve gerçek Groq çağrısı kullanılmadı; canlı sunucuya dağıtım yapılmadı.
+
+Son ekip/sipariş genişletmesinde temiz `npm ci --ignore-scripts`, build ve sözdizimi kontrolleriyle **129 testin tamamı geçti** (104 önceki + 25 yeni). Yeni kontroller kullanıcıya özel MFA/parola/rol sınırları, sipariş kodu hashleri ve kalıcı deneme sınırları, proje boyunca revizyon hakları, açık ek ücret onayı ve eşzamanlı tekrar koruması, Türkçe çoklu not gövde sınırı, kesin kuruş hesabı, değiştirilemeyen teklif/PDF, izinli referanslar ve çöp kutusu geri yükleme/temizleme davranışlarını kapsar. Bağımlılık taraması 0 bilinen açık bildirdi.
+
+Gerçek Chromium'da tam kullanıcı akışına ek olarak 1440/1024/900/390/320 px genişliklerde **60 sayfa/ekran kontrolü** geçti: ortak oluşturma → geçici parolayı değiştirme → kendi MFA kurulumu ve yetki sınırları; atama/kapsam → teklif/PDF → aktif projeden teslim → müşteri sipariş/kod erişimi → gerçek WebM oynatma/zaman kodlu not → ilk 3 ücretsiz tur → 4. turda açık 1.000 TL kabulü → onay/yorum/moderasyon; logo/öne çıkan sıralama → çöp kutusu/geri yükleme/kalıcı silme → aktörlü işlem geçmişi. JavaScript/CSP hatası veya yatay taşma görülmedi. Yalnız geçici kurmaca veriler kullanıldı ve temizlendi; gerçek müşteriye mesaj veya sağlayıcı çağrısı yapılmadı.
+
+İndirilen katalogdaki eski 2 tur ifadesi, proje başına 3 tur ve sonraki her tur için 1.000 TL kuralıyla güncellendi. Diğer katalog rakamlarının korunması metin karşılaştırmasıyla, ilgili sayfalar da görsel olarak doğrulandı. `.gitattributes`, PDF/PNG/TTF dosyalarını ikili olarak işaretleyerek Windows satır sonu dönüşümünden korur. Güncel kullanım adımları [Stüdyo rehberindedir](docs/STUDIO_GUIDE.md). Canlı sunucuya dağıtım yapılmadı.

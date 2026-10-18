@@ -4,7 +4,7 @@ import {createApi} from './lib/api.mjs';
 import {readFile} from 'node:fs/promises';
 const files = new Map([
  ['/', ['index.html','text/html; charset=utf-8']],
- ...['produksiyon','drone','kurgu','dijital','paketler','iletisim','isler'].map(name=>['/'+name,[name+'.html','text/html; charset=utf-8']]),
+ ...['produksiyon','drone','kurgu','dijital','paketler','iletisim','portfolyo'].map(name=>['/'+name,[name+'.html','text/html; charset=utf-8']]),
  ['/teslim',['delivery.html','text/html; charset=utf-8']],
  ['/delivery.css',['delivery.css','text/css; charset=utf-8']],
  ['/delivery.js',['delivery.js','text/javascript; charset=utf-8']],
@@ -15,6 +15,7 @@ const files = new Map([
  ['/admin',['admin.html','text/html; charset=utf-8']],
  ['/admin.css',['admin.css','text/css; charset=utf-8']],
  ['/admin.js',['admin.js','text/javascript; charset=utf-8']],
+ ['/admin-expansion.js',['admin-expansion.js','text/javascript; charset=utf-8']],
  ['/favicon.png',['favicon.png','image/png']],
  ...['ordvis-logo','ordvis-mark'].map(name=>['/media/'+name+'.png',['media/'+name+'.png','image/png']]),
  ...['aerial-coast','edit-frame','drone'].map(name=>['/media/'+name+'.svg',['media/'+name+'.svg','image/svg+xml']]),
@@ -30,8 +31,9 @@ export function createServer(options={}){
  const pathname=req.url.split('?')[0];
  if(await api.handle(req,res,pathname,headers))return;
  if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{...headers,Allow:'GET, HEAD'});return res.end('Method not allowed');}
+ if(pathname==='/isler'||pathname.startsWith('/isler/')){res.writeHead(308,{...headers,Location:pathname.replace(/^\/isler/,'/portfolyo')+(req.url.includes('?')?'?'+req.url.split('?').slice(1).join('?'):'')});return res.end();}
  if(pathname.length>1 && pathname.endsWith('/') && files.has(pathname.slice(0,-1))){res.writeHead(308,{...headers,Location:pathname.slice(0,-1)+(req.url.includes('?')?'?'+req.url.split('?').slice(1).join('?'):'')});return res.end();}
- const projectMatch=pathname.match(/^\/isler\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/);
+ const projectMatch=pathname.match(/^\/portfolyo\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/);
  const publicProject=projectMatch&&api.publicProjectExists(projectMatch[1]);
  if(publicProject&&pathname.endsWith('/')){res.writeHead(308,{...headers,Location:pathname.slice(0,-1)+(req.url.includes('?')?'?'+req.url.split('?').slice(1).join('?'):'')});return res.end();}
  const file=files.get(pathname)||(publicProject?['proje.html','text/html; charset=utf-8']:null);
