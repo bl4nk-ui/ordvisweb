@@ -139,6 +139,8 @@ Bu kontroller bir penetrasyon testi veya mutlak güvenlik garantisi değildir. �
 
 Konsept SVG'ler müşteri referansı veya gerçek çekim olarak sunulmaz. Kurgu alanı ses/video oynatmayan görsel demodur. Drone kontrol düğmeleri kaldırıldı; giriş ve süzülme animasyonu devam eder. Hareket azaltma tercihi desteklenir. PDF fiyatları 30 Kasım 2026 tarihine kadar geçerlidir; motion/VFX özel kapsamı ayrıca teklif edilir.
 
+Görsel dil siyah/antrasit yüzeyler, kırık beyaz tipografi ve belirgin beyaz ana butonlardan oluşur. Statik geometrik yüzeyler logodaki açılardan esinlenir; giriş ve geçiş alanlarında hafif kullanılır. Metin ve form alanlarının zemini sadedir. Çekim/kurgu konsept görselleri renklerini korur; tüm sayfaya gri filtre uygulanmaz. Genel site ve yönetim paneli aynı paleti paylaşır; hata ve silme uyarıları işlevsel vurgu taşır. Arka plan için yeni ağ isteği veya hareketli efekt eklenmez.
+
 İletişim: **ordviscreative@gmail.com**, **+90 530 716 88 08**.
 
 ## Doğrulama
@@ -154,5 +156,7 @@ Güvenlik, veri, rapor, Groq protokolü ve saatlik otomasyon test grupları; kal
 İş tamamlama testleri ödeme zorunluluğunu, hatalı tutarda kaydın değişmemesini, tam kuruş hesabını, yeniden başlatma/yeniden açmayı, eski CHECK şemasının veri kaybetmeden geçişini, silme yetkilerini ve body sürerken çıkış yarışını kapsar. Gerçek Chromium'da MFA → aktif/tamamlanan/eski arşiv ayrımı → zorunlu tahsilat → yenilemede kalıcılık → yeniden açma → silmeden vazgeçme/onaylı silme → bağlı AI özetinin temizlenmesi ve çıkış/boşta kilitlenmede ödeme/dialog temizliği, 1440/390/320 px genişliklerde geçici verilerle doğrulandı. Bu kontrollerde gerçek müşteri kaydı veya sağlayıcı çağrısı kullanılmadı.
 
 Logo düzeltmesinde yedi genel sayfa ve panel 1440/390/320 px Chromium'da kontrol edildi; üst/alt logo, amblem, mobil menü, giriş ekranı, panel menüsü ve PNG sekme simgesi doğrulandı. Yeni görseller sunucunun açık dosya listesinde aynı origin üzerinden sunulur; CSP gevşetilmedi. Sekme simgesinin sürüm parametresi eski logonun tarayıcı önbelleğinde kalmasını önler.
+
+Siyah-beyaz tema ayrıca aynı ekran genişliklerinde; mobil menü, paket karşılaştırması, kurgu aşamaları/oynatma, hareket azaltmalı drone, gizlilik penceresi ve gerçek form → geçici SQLite kaydı akışıyla kontrol edildi. Yeni panel görünümünde MFA, ödeme ile tamamlama, yeniden açma, onaylı silme, oturum kilidi ve sahte sağlayıcıyla saatlik özet akışı doğrulandı. Görsel kontrolde taşma veya JavaScript/CSP/görsel yükleme hatası görülmedi. Bu görsel güncelleme için build, sözdizimi ve mevcut dört sunucu/genel dosya testi geçti; gerçek müşteri verisi veya Groq çağrısı kullanılmadı.
 
 Chromium ile 320/390/768/1440 px tüm sayfalar ve panel; gerçek form > veritabanı > giriş > talep detayları > durum/not kaydı > sayfa yenileme > çıkış akışı doğrulandı. Zararlı HTML örnekleri metin olarak kaldı. Maskeli yönetici kurulum komutu, yanlış eski parolayla değişiklik reddi ve hesap değiştirme ayrıca geçici veride denendi. Gerçek tarayıcıda MFA → otomasyon izni → ileri alınmış saat → sahte Groq HTTP yanıtı → SQLite özet → sayfa yenileme → kapatma/çıkış akışı ve anahtarın maskeli kurulumu doğrulandı. Gerçek tarayıcıda ilk MFA kurulumu, kurtarma koduyla giriş, kod yenileme, cihaz değiştirme ve kontrollü asistan raporu indirme de doğrulandı. Kontroller Linux üzerinde yürütüldü; Windows üzerinde doğrudan koşulmadı.
