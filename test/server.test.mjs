@@ -20,7 +20,7 @@ test('every public page opens directly with distinct content and accepts query p
   const base = `http://127.0.0.1:${server.address().port}`;
   const titles = new Set();
   const bodies = new Set();
-  for (const route of ['/', '/produksiyon', '/drone', '/kurgu', '/dijital', '/paketler', '/iletisim']) {
+  for (const route of ['/', '/produksiyon', '/drone', '/kurgu', '/dijital', '/paketler', '/iletisim', '/isler', '/teslim']) {
    const response = await fetch(base + route);
    assert.equal(response.status, 200, route);
    assert.equal(response.headers.get('content-type'), 'text/html; charset=utf-8', route);
@@ -65,6 +65,10 @@ test('public assets retain their content types and security policy', async()=>{
   for (const [route, type] of [
    ['/style.css', 'text/css; charset=utf-8'],
    ['/app.js', 'text/javascript; charset=utf-8'],
+   ['/studio.js', 'text/javascript; charset=utf-8'],
+   ['/studio.css', 'text/css; charset=utf-8'],
+   ['/delivery.js', 'text/javascript; charset=utf-8'],
+   ['/delivery.css', 'text/css; charset=utf-8'],
    ['/favicon.png', 'image/png'],
    ['/media/ordvis-logo.png', 'image/png'],
    ['/media/ordvis-mark.png', 'image/png'],
@@ -97,7 +101,7 @@ test('unknown, private and traversal paths stay isolated and writes are rejected
    '/README.md', '/.env', '/.git/config', '/test/server.test.mjs',
    '/public/index.html', '/media/../../server.mjs', '/%2e%2e/server.mjs',
    '/%2e%2e%2fserver.mjs', '/media/%2e%2e%2f%2e%2e%2fserver.mjs',
-   '/media/..%5c..%5cserver.mjs', '/drone/anything',
+   '/media/..%5c..%5cserver.mjs', '/drone/anything', '/isler/olmayan-proje', '/proje.html', '/delivery.html',
   ]) {
    const response = await fetch(base + route);
    assert.equal(response.status, 404, route);

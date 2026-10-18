@@ -31,6 +31,18 @@
   let automationReady = false;
   let screenLockTimer;
   const drafts = new Map();
+  const projectCategories = { production: 'Prodüksiyon', drone: 'Drone', editing: 'Kurgu & efekt', digital: 'Dijital' };
+  const stages = { inquiry: 'İlk talep', proposal: 'Teklif', waiting: 'Dönüş bekleniyor', scheduled: 'Planlandı', production: 'Üretimde', review: 'İncelemede', delivered: 'Teslim edildi' };
+  let projects = [];
+  let selectedProjectId = null;
+  let portfolioRequest = 0;
+  let trackingRequest = 0;
+  let projectDirty = false;
+  let projectEditorRequest = 0;
+  const uploads = new Set();
+  const shareLinks = new Map();
+  const trackingDrafts = new Map();
+  const deliveryLeadIds = new Map();
 
   class ApiError extends Error {
     constructor(message, status, code) { super(message); this.status = status; this.code = code; }
@@ -99,13 +111,15 @@
     mfaRequired = true;
     clearSecuritySecrets();
     clearAutomation();
+    clearStudio();
     drafts.clear();
     $('leads-list').replaceChildren();
     $('detail-content').replaceChildren();
     $('detail-content').hidden = true;
     $('detail-empty').hidden = false;
     $('detail-panel').setAttribute('aria-labelledby', 'detail-heading');
-    for (const id of ['count-active', 'count-new', 'count-contacted', 'count-completed', 'sidebar-count', 'completed-sidebar-count', 'visible-count']) $(id).textContent = '0';
+    for (const id of ['count-active', 'count-new', 'count-contacted', 'count-completed', 'sidebar-count', 'completed-sidebar-count', 'visible-count', 'tracking-sidebar-count']) $(id).textContent = '0';
+    $('tracking-sidebar-count').hidden = true;
     $('updated-time').textContent = '';
     $('user-name').textContent = 'Yönetici';
     $('user-initial').textContent = 'O';
@@ -188,7 +202,7 @@
     const restricted = mfaRequired || !mfaEnabled;
     $('requests-nav').disabled = restricted || backupCodes.length > 0;
     $('mobile-requests-nav').disabled = restricted || backupCodes.length > 0;
-    for (const id of ['completed-nav', 'mobile-completed-nav', 'archived-nav', 'mobile-archived-nav']) $(id).disabled = restricted || backupCodes.length > 0;
+    for (const id of ['completed-nav', 'mobile-completed-nav', 'archived-nav', 'mobile-archived-nav', 'tracking-nav', 'mobile-tracking-nav', 'portfolio-nav', 'mobile-portfolio-nav']) $(id).disabled = restricted || backupCodes.length > 0;
     $('automation-nav').disabled = restricted || backupCodes.length > 0;
     $('mobile-automation-nav').disabled = restricted || backupCodes.length > 0;
     $('requests-nav').title = restricted ? 'Önce iki aşamalı doğrulamayı tamamla' : '';
@@ -207,7 +221,9 @@
     $('archived-nav').classList.toggle('active', currentSection === 'requests' && currentFolder === 'archived');
     $('security-nav').classList.toggle('active', currentSection === 'security');
     $('automation-nav').classList.toggle('active', currentSection === 'automation');
-    for (const [id, section, folder] of [['requests-nav', 'requests', 'active'], ['mobile-requests-nav', 'requests', 'active'], ['completed-nav', 'requests', 'completed'], ['mobile-completed-nav', 'requests', 'completed'], ['archived-nav', 'requests', 'archived'], ['mobile-archived-nav', 'requests', 'archived'], ['security-nav', 'security'], ['mobile-security-nav', 'security'], ['automation-nav', 'automation'], ['mobile-automation-nav', 'automation']]) {
+    $('tracking-nav').classList.toggle('active', currentSection === 'tracking');
+    $('portfolio-nav').classList.toggle('active', currentSection === 'portfolio');
+    for (const [id, section, folder] of [['requests-nav', 'requests', 'active'], ['mobile-requests-nav', 'requests', 'active'], ['completed-nav', 'requests', 'completed'], ['mobile-completed-nav', 'requests', 'completed'], ['archived-nav', 'requests', 'archived'], ['mobile-archived-nav', 'requests', 'archived'], ['security-nav', 'security'], ['mobile-security-nav', 'security'], ['automation-nav', 'automation'], ['mobile-automation-nav', 'automation'], ['portfolio-nav', 'portfolio'], ['mobile-portfolio-nav', 'portfolio'], ['tracking-nav', 'tracking'], ['mobile-tracking-nav', 'tracking']]) {
       if (currentSection === section && (!folder || folder === currentFolder)) $(id).setAttribute('aria-current', 'page');
       else $(id).removeAttribute('aria-current');
     }
@@ -226,6 +242,8 @@
     $('requests').hidden = false;
     $('security-section').hidden = true;
     $('automation-section').hidden = true;
+    $('portfolio-section').hidden = true;
+    $('tracking-section').hidden = true;
     renderFolder();
     updateSecurityNavigation();
     await refreshLeads();
@@ -238,6 +256,8 @@
     $('requests').hidden = true;
     $('security-section').hidden = false;
     $('automation-section').hidden = true;
+    $('portfolio-section').hidden = true;
+    $('tracking-section').hidden = true;
     updateSecurityNavigation();
     if (focus) $('security-title').focus({ preventScroll: true });
     if (securityLoading) return;
@@ -298,6 +318,8 @@
     $('requests').hidden = true;
     $('security-section').hidden = true;
     $('automation-section').hidden = false;
+    $('portfolio-section').hidden = true;
+    $('tracking-section').hidden = true;
     updateSecurityNavigation();
     $('automation-title').focus({ preventScroll: true });
     await loadAutomation();
@@ -554,6 +576,7 @@
     $('count-active').textContent = String(leadCounts.new + leadCounts.contacted);
     $('sidebar-count').textContent = $('count-new').textContent;
     $('completed-sidebar-count').textContent = String(leadCounts.completed);
+    renderTrackingCount(leads);
     for (const id of ['archived-nav', 'mobile-archived-nav']) $(id).hidden = leadCounts.archived === 0 && currentFolder !== 'archived';
   }
 
@@ -735,11 +758,21 @@
     content.append(topline, title, el('p', 'detail-date', readableDate(lead.createdAt, true)), badge(lead.status), contacts);
     content.append(el('h3', 'detail-section-label', 'İLGİLENDİĞİ PAKET'), el('span', 'detail-plan', lead.plan || 'Birlikte karar verelim'));
     content.append(el('h3', 'detail-section-label', 'AKLINDAKİ PROJE'), el('p', 'detail-brief', lead.brief || 'Proje özeti belirtilmedi.'));
+    if (lead.briefDetails && typeof lead.briefDetails === 'object') {
+      const briefDetails = el('dl', 'brief-detail-list');
+      for (const [key, label] of [['service', 'Hizmet'], ['goal', 'Hedef'], ['location', 'Lokasyon'], ['deadline', 'Hedef tarih'], ['budgetRange', 'Bütçe aralığı']]) {
+        if (!lead.briefDetails[key]) continue;
+        const row = el('div');
+        row.append(el('dt', '', label), el('dd', '', key === 'service' ? projectCategories[lead.briefDetails[key]] || lead.briefDetails[key] : lead.briefDetails[key]));
+        briefDetails.append(row);
+      }
+      if (briefDetails.childNodes.length) content.append(briefDetails);
+    }
     if (Number.isSafeInteger(lead.paymentReceivedCents) && lead.paymentReceivedCents > 0) {
       const receipt = el('div', 'payment-record');
       receipt.append(el('span', '', 'ALINAN ÖDEME'), el('strong', '', moneyFormat.format(lead.paymentReceivedCents / 100)));
       if (lead.completedAt) receipt.append(el('span', '', `İlk tamamlanma: ${readableDate(lead.completedAt, true)}`));
-      if (lead.status !== 'completed') receipt.append(el('p', '', 'İş yeniden açıldı. Önceki ödeme kaydı korunuyor.'));
+      if (lead.status !== 'completed' && lead.completedAt) receipt.append(el('p', '', 'İş yeniden açıldı. Önceki ödeme kaydı korunuyor.'));
       content.append(receipt);
     }
 
@@ -872,7 +905,7 @@
     }
     const deleteArea = el('div', 'detail-delete');
     deleteArea.append(deleteButton, el('p', 'field-help', 'Kaydı saklamak için durumu “Tamamlandı” yap. Silme işlemi kalıcıdır.'));
-    content.append(form, deleteArea);
+    content.append(form, trackingEditor(lead), deliveryEditor(lead), deleteArea);
     $('detail-empty').hidden = true;
     $('detail-content').hidden = false;
     $('detail-content').replaceChildren(content);
@@ -929,6 +962,8 @@
       invalidateLeadLoad();
       leads = leads.filter((lead) => lead.id !== id);
       drafts.delete(id);
+      trackingDrafts.delete(id);
+      for (const [deliveryId, leadId] of deliveryLeadIds) if (leadId === id) { shareLinks.delete(deliveryId); deliveryLeadIds.delete(deliveryId); }
       deletingLeads.delete(id);
       renderCounts();
       if (selectedId === id) closeDetail(false);
@@ -953,6 +988,521 @@
       }
     }
   });
+
+  function clearStudio() {
+    portfolioRequest += 1;
+    trackingRequest += 1;
+    for (const upload of uploads) upload.abort();
+    uploads.clear();
+    projects = [];
+    selectedProjectId = null;
+    projectDirty = false;
+    projectEditorRequest += 1;
+    trackingDrafts.clear();
+    shareLinks.clear();
+    deliveryLeadIds.clear();
+    for (const id of ['project-list', 'project-editor', 'tracking-summary', 'tracking-reminders', 'tracking-board']) $(id).replaceChildren();
+    for (const id of ['portfolio-message', 'tracking-message']) message($(id));
+  }
+
+  function studioAllowed() { return authenticated && !mfaRequired && mfaEnabled && !backupCodes.length; }
+
+  function showStudioSection(section) {
+    if (!studioAllowed()) return false;
+    clearDeleteDialog();
+    currentSection = section;
+    for (const [id, name] of [['requests', 'requests'], ['security-section', 'security'], ['automation-section', 'automation'], ['portfolio-section', 'portfolio'], ['tracking-section', 'tracking']]) $(id).hidden = section !== name;
+    updateSecurityNavigation();
+    $(`${section}-title`).focus({ preventScroll: true });
+    return true;
+  }
+
+  function field(label, id, { tag = 'input', type = 'text', value = '', required = false, maxLength, placeholder = '', options } = {}) {
+    const wrapper = el('div', 'studio-field');
+    const caption = el('label', '', label);
+    caption.htmlFor = id;
+    const control = el(tag);
+    control.id = id;
+    control.name = id;
+    if (tag === 'input') control.type = type;
+    if (tag === 'textarea') control.rows = 3;
+    if (maxLength) control.maxLength = maxLength;
+    control.required = required;
+    if (placeholder) control.placeholder = placeholder;
+    if (options) for (const [key, text] of Object.entries(options)) {
+      const option = el('option', '', text); option.value = key; control.append(option);
+    }
+    control.value = value ?? '';
+    wrapper.append(caption, control);
+    return { wrapper, control };
+  }
+
+  function localMediaUrl(value, prefix = '/api/admin/') {
+    if (typeof value !== 'string' || !value.startsWith(prefix)) return null;
+    try { const url = new URL(value, location.origin); return url.origin === location.origin ? url.href : null; } catch { return null; }
+  }
+
+  function fileSize(value) {
+    return Number.isFinite(value) ? value >= 1024 * 1024 ? `${(value / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.ceil(value / 1024))} KB` : '';
+  }
+
+  function fileType(file) {
+    const known = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'application/pdf'];
+    if (known.includes(file.type)) return file.type;
+    const extension = file.name.split('.').pop().toLowerCase();
+    return { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', mp4: 'video/mp4', webm: 'video/webm', pdf: 'application/pdf' }[extension] || '';
+  }
+
+  function uploadFile(path, file, allowed, target) {
+    const type = fileType(file);
+    const max = type.startsWith('image/') ? 8 * 1024 * 1024 : 100 * 1024 * 1024;
+    if (!allowed.includes(type)) return Promise.reject(new ApiError('Bu dosya türü desteklenmiyor. Belirtilen biçimlerden birini seç.', 400));
+    if (!file.size || file.size > max) return Promise.reject(new ApiError(`Dosya boş olamaz ve ${max === 8 * 1024 * 1024 ? '8' : '100'} MB sınırını aşamaz.`, 400));
+    const generation = authGeneration;
+    return new Promise((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      uploads.add(request);
+      request.open('POST', path);
+      request.timeout = 5 * 60 * 1000;
+      request.setRequestHeader('Content-Type', type);
+      request.setRequestHeader('Accept', 'application/json');
+      request.setRequestHeader('X-CSRF-Token', csrfToken);
+      const fail = (text) => { uploads.delete(request); reject(new ApiError(text, 0)); };
+      request.upload.addEventListener('progress', (event) => {
+        if (generation !== authGeneration) return;
+        message(target, event.lengthComputable ? `%${Math.round(event.loaded / event.total * 100)} yüklendi${event.loaded === event.total ? ' · Dosya kontrol ediliyor…' : '…'}` : 'Dosya yükleniyor…', 'success');
+      });
+      request.addEventListener('load', () => {
+        uploads.delete(request);
+        let result;
+        try { result = JSON.parse(request.responseText); } catch { result = {}; }
+        if (request.status < 200 || request.status >= 300) reject(new ApiError(result.error || 'Dosya yüklenemedi.', request.status, result.code));
+        else { if (generation === authGeneration && authenticated) resetScreenLock(); resolve(result); }
+      });
+      request.addEventListener('error', () => fail('Dosya yüklenemedi. Bağlantını kontrol edip tekrar dene.'));
+      request.addEventListener('timeout', () => fail('Yükleme süresi doldu. Daha küçük bir dosyayla tekrar dene.'));
+      request.addEventListener('abort', () => fail('Dosya yüklemesi iptal edildi.'));
+      message(target, 'Dosya yükleniyor…', 'success');
+      request.send(file);
+    });
+  }
+
+  async function showPortfolio() {
+    if (!showStudioSection('portfolio')) return;
+    await loadProjects();
+  }
+
+  async function loadProjects() {
+    if (!studioAllowed()) return;
+    const generation = authGeneration;
+    const request = ++portfolioRequest;
+    $('portfolio-refresh').disabled = true;
+    message($('portfolio-message'));
+    try {
+      const result = await api('/api/admin/projects');
+      if (generation !== authGeneration || request !== portfolioRequest) return;
+      if (!Array.isArray(result.projects)) throw new ApiError('Projeler okunamadı. Yenileyip tekrar dene.', 0);
+      projects = result.projects.filter((project) => project && typeof project.id === 'string');
+      renderProjects();
+      if (!projectDirty) renderProjectEditor(projects.find((project) => project.id === selectedProjectId) || null);
+    } catch (error) {
+      if (generation !== authGeneration || request !== portfolioRequest || handleAuthError(error)) return;
+      message($('portfolio-message'), error.message);
+    } finally { if (generation === authGeneration && request === portfolioRequest) $('portfolio-refresh').disabled = false; }
+  }
+
+  function renderProjects() {
+    $('project-list').replaceChildren();
+    $('portfolio-list-state').textContent = projects.length ? `${projects.length} proje · ${projects.filter((project) => project.published).length} yayında` : 'Vitrinin hazır. İlk gerçek projen için “Yeni proje ekle” ile başla.';
+    for (const project of projects) {
+      const item = el('li');
+      const button = el('button', 'project-admin-item');
+      button.type = 'button';
+      button.setAttribute('aria-pressed', String(project.id === selectedProjectId));
+      const line = el('span');
+      line.append(el('strong', '', project.title), el('span', 'project-publish-state', project.published ? 'Yayında' : 'Taslak'));
+      button.append(line, el('small', '', projectCategories[project.category] || project.category));
+      button.addEventListener('click', () => {
+        if (projectDirty && !window.confirm('Kaydedilmemiş proje değişikliklerini bırakıp diğer projeye geçilsin mi?')) return;
+        selectedProjectId = project.id; projectDirty = false; renderProjects(); renderProjectEditor(project);
+        if (window.matchMedia('(max-width: 950px)').matches) $('project-editor').scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+      });
+      item.append(button); $('project-list').append(item);
+    }
+  }
+
+  function renderProjectEditor(project) {
+    const editorRequest = ++projectEditorRequest;
+    const editor = $('project-editor');
+    editor.replaceChildren();
+    editor.append(el('span', 'eyebrow', project ? 'PROJE / DÜZENLE' : 'YENİ BİR İMZA'), el('h2', '', project ? project.title : 'İlk bakıştan son kareye.'));
+    editor.append(el('p', 'field-help', 'İçeriği kaydet, kapak ve videoları yükle. Yayına al seçeneğini açtığında proje portfolyo sayfanda görünür. Dosyalar doğrudan kendi sunucunda tutulur.'));
+    const form = el('form', 'project-form studio-form');
+    const controls = {};
+    for (const [name, label, config] of [
+      ['title', 'Proje adı', { required: true, maxLength: 160 }],
+      ['category', 'Hizmet', { tag: 'select', required: true, options: projectCategories }],
+      ['clientName', 'Müşteri / marka (isteğe bağlı)', { maxLength: 120 }],
+      ['slug', 'Sayfa adresi (boşsa otomatik)', { maxLength: 100, placeholder: 'ornek-proje' }],
+      ['summary', 'Kısa proje özeti', { tag: 'textarea', required: true, maxLength: 600 }],
+      ['challenge', 'İhtiyaç / çıkış noktası', { tag: 'textarea', maxLength: 3000 }],
+      ['approach', 'Yaratıcı yaklaşım', { tag: 'textarea', maxLength: 3000 }],
+      ['result', 'Sonuç', { tag: 'textarea', maxLength: 3000 }],
+    ]) {
+      const input = field(label, `project-${name}`, { ...config, value: project?.[name] || (name === 'category' ? 'production' : '') });
+      controls[name] = input.control; form.append(input.wrapper);
+    }
+    const publishLabel = el('label', 'studio-checkbox');
+    const published = el('input'); published.id = 'project-published'; published.type = 'checkbox'; published.checked = project?.published === true;
+    publishLabel.append(published, el('span', '', 'Projeyi portfolyoda yayına al'));
+    const status = el('p', 'message'); status.setAttribute('role', 'status');
+    const save = el('button', 'button primary', project ? 'Projeyi kaydet ↗' : 'Taslağı oluştur ↗'); save.type = 'submit';
+    form.append(publishLabel, save, status);
+    form.addEventListener('input', () => { projectDirty = true; message(status); });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (save.disabled || !form.reportValidity()) return;
+      const generation = authGeneration;
+      const payload = Object.fromEntries(Object.entries(controls).map(([key, control]) => [key, control.value.trim()])); payload.published = published.checked;
+      if (!payload.slug) delete payload.slug;
+      save.disabled = true;
+      for (const control of form.elements) control.disabled = true;
+      message(status, 'Proje kaydediliyor…', 'success');
+      try {
+        const result = await api(project ? `/api/admin/projects/${encodeURIComponent(project.id)}` : '/api/admin/projects', { method: project ? 'PATCH' : 'POST', body: payload, csrf: true });
+        if (generation !== authGeneration) return;
+        if (!result.project?.id) throw new ApiError('Kaydedilen proje okunamadı. Listeyi yenile.', 0);
+        const index = projects.findIndex((entry) => entry.id === result.project.id);
+        if (index < 0) projects.unshift(result.project); else projects[index] = result.project;
+        if (editorRequest === projectEditorRequest) { selectedProjectId = result.project.id; projectDirty = false; renderProjectEditor(result.project); }
+        renderProjects();
+        message($('portfolio-message'), result.project.published ? 'Proje yayında. Portfolyo sayfanda görüntüleyebilirsin.' : 'Taslak kaydedildi. Görsellerini ve videolarını aşağıdan ekleyebilirsin.', 'success');
+      } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(status, error.message); }
+      finally { if (generation === authGeneration) for (const control of form.elements) control.disabled = false; }
+    });
+    editor.append(form);
+    if (!project) return;
+    if (project.published) {
+      const link = el('a', 'button secondary', 'Yayındaki projeyi aç ↗'); link.href = `/isler/${encodeURIComponent(project.slug)}`; link.target = '_blank'; link.rel = 'noopener'; editor.append(link);
+    }
+    const mediaSection = el('section', 'project-media-section');
+    mediaSection.append(el('h3', '', 'Kapağın. Filmin. Farkın.'), el('p', 'field-help', 'Görseller: JPG, PNG veya WebP · en fazla 8 MB. Videolar: MP4 veya WebM · en fazla 100 MB. Önce ve sonra alanlarına iki görsel veya iki video ekleyince karşılaştırma görünür. Yeni dosya, aynı alandaki eski dosyanın yerini alır.'));
+    for (const [role, label] of [['cover', 'Proje kapağı'], ['video', 'Ana proje videosu'], ['before', 'Önce / ham görüntü'], ['after', 'Sonra / son kurgu']]) mediaSection.append(projectMediaControl(project, role, label));
+    editor.append(mediaSection);
+    const danger = el('details', 'studio-danger'); danger.append(el('summary', '', 'Projeyi kalıcı olarak sil'));
+    const deleteForm = el('form', 'studio-form');
+    deleteForm.append(el('p', 'field-help', 'Proje ve tüm dosyaları silinir. Sayfayı yayından kaldırmak için yukarıdaki yayın seçeneğini kapatabilirsin.'));
+    const confirmation = field('Kalıcı silmek için SİL yaz', 'project-delete-confirmation', { required: true, maxLength: 3 });
+    const remove = el('button', 'button danger-outline', 'Projeyi ve dosyalarını sil'); remove.type = 'submit'; remove.disabled = true;
+    const deleteMessage = el('p', 'message'); deleteMessage.setAttribute('role', 'status');
+    confirmation.control.addEventListener('input', () => { remove.disabled = confirmation.control.value !== 'SİL'; });
+    deleteForm.append(confirmation.wrapper, remove, deleteMessage);
+    deleteForm.addEventListener('submit', async (event) => {
+      event.preventDefault(); if (remove.disabled || confirmation.control.value !== 'SİL') return;
+      const generation = authGeneration; remove.disabled = true;
+      try {
+        await api(`/api/admin/projects/${encodeURIComponent(project.id)}`, { method: 'DELETE', csrf: true, body: { confirmation: 'SİL' } });
+        if (generation !== authGeneration) return;
+        projects = projects.filter((entry) => entry.id !== project.id);
+        if (editorRequest === projectEditorRequest) { selectedProjectId = null; projectDirty = false; renderProjectEditor(null); }
+        renderProjects(); message($('portfolio-message'), 'Proje ve dosyaları silindi.', 'success');
+      } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(deleteMessage, error.message); }
+      finally { if (generation === authGeneration) remove.disabled = false; }
+    });
+    danger.append(deleteForm); editor.append(danger);
+  }
+
+  function projectMediaControl(project, role, label) {
+    const container = el('div', 'project-media-control');
+    const heading = el('h4', '', label);
+    const path = `/api/admin/projects/${encodeURIComponent(project.id)}/media/${role}`;
+    const media = project.media?.[role];
+    if (media) {
+      const url = localMediaUrl(typeof media === 'string' ? media : media.url || path);
+      if (url) {
+        if (role === 'cover') { const image = el('img', 'project-cover-preview'); image.src = url; image.alt = `${project.title} proje kapağı`; image.loading = 'lazy'; container.append(image); }
+        else { const preview = el('a', 'media-preview-link', `${label} dosyasını aç ↗`); preview.href = url; preview.target = '_blank'; preview.rel = 'noopener'; container.append(preview); }
+      }
+    }
+    const selection = field(label + ' dosyası', `project-media-${role}`, { type: 'file' });
+    const imageTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const videoTypes = ['video/mp4', 'video/webm'];
+    const allowedTypes = role === 'cover' ? imageTypes : role === 'video' ? videoTypes : [...imageTypes, ...videoTypes];
+    selection.control.accept = allowedTypes.join(',');
+    const upload = el('button', 'button secondary', media ? 'Dosyayı değiştir ↑' : 'Dosyayı yükle ↑'); upload.type = 'button'; upload.disabled = true;
+    const status = el('p', 'message'); status.setAttribute('role', 'status');
+    selection.control.addEventListener('change', () => { upload.disabled = !selection.control.files.length; message(status); });
+    upload.addEventListener('click', async () => {
+      const file = selection.control.files[0]; if (!file || upload.disabled) return;
+      const generation = authGeneration; upload.disabled = true; selection.control.disabled = true;
+      try {
+        const result = await uploadFile(path, file, allowedTypes, status);
+        if (generation !== authGeneration) return;
+        const updated = result.project;
+        if (updated?.id) { const index = projects.findIndex((entry) => entry.id === updated.id); if (index >= 0) projects[index] = updated; renderProjects(); }
+        message(status, 'Dosya kaydedildi.', 'success'); selection.control.value = '';
+        if (!projectDirty && selectedProjectId === project.id && updated) renderProjectEditor(updated);
+      } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(status, error.message); }
+      finally { if (generation === authGeneration) { selection.control.disabled = false; upload.disabled = !selection.control.files.length; } }
+    });
+    container.prepend(heading); container.append(selection.wrapper, upload, status);
+    if (media) {
+      const remove = el('button', 'text-button', 'Bu dosyayı kaldır'); remove.type = 'button';
+      remove.addEventListener('click', async () => {
+        if (!window.confirm(`${label} dosyası kalıcı olarak kaldırılsın mı?`)) return;
+        const generation = authGeneration; remove.disabled = true;
+        try {
+          const result = await api(path, { method: 'DELETE', csrf: true, body: { confirmation: 'SİL' } });
+          if (generation !== authGeneration) return;
+          if (result.project) { const index = projects.findIndex((entry) => entry.id === project.id); if (index >= 0) projects[index] = result.project; if (!projectDirty && selectedProjectId === project.id) renderProjectEditor(result.project); }
+          message(status, 'Dosya kaldırıldı.', 'success');
+        } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(status, error.message); }
+        finally { if (generation === authGeneration) remove.disabled = false; }
+      }); container.append(remove);
+    }
+    return container;
+  }
+
+  function trackingOf(lead) {
+    return { stage: 'inquiry', nextActionAt: null, nextActionNote: '', agreedAmountCents: null, paymentDueDate: null, receivedAmountCents: lead.paymentReceivedCents || 0, remainingCents: 0, ...lead.tracking };
+  }
+
+  function renderTrackingCount(entries) {
+    const count = entries.filter((lead) => trackingOf(lead).actionOverdue || trackingOf(lead).paymentOverdue).length;
+    $('tracking-sidebar-count').textContent = String(count);
+    $('tracking-sidebar-count').hidden = count === 0;
+  }
+
+  function localDateTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  }
+
+  function decimalAmount(value) { return Number.isSafeInteger(value) ? (value / 100).toFixed(2) : ''; }
+
+  function trackingEditor(lead) {
+    const tracking = trackingOf(lead);
+    const values = trackingDrafts.get(lead.id) || { stage: tracking.stage, nextActionAt: localDateTime(tracking.nextActionAt), nextActionNote: tracking.nextActionNote || '', agreedAmount: decimalAmount(tracking.agreedAmountCents), receivedAmount: decimalAmount(tracking.receivedAmountCents) || '0.00', paymentDueDate: tracking.paymentDueDate || '' };
+    const section = el('details', 'lead-studio-block');
+    section.append(el('summary', '', 'İş takibi ve ödeme ↗'));
+    const form = el('form', 'studio-form tracking-form');
+    const controls = {};
+    for (const [name, label, config] of [
+      ['stage', 'İşin aşaması', { tag: 'select', options: stages }],
+      ['nextActionAt', 'Sonraki takip zamanı', { type: 'datetime-local' }],
+      ['nextActionNote', 'Sonraki adım / hatırlatma', { tag: 'textarea', maxLength: 1000, placeholder: 'Teklifi görüş, çekim tarihini netleştir…' }],
+      ['agreedAmount', 'Anlaşılan toplam (TL)', { maxLength: 12, placeholder: 'Henüz belli değilse boş bırak' }],
+      ['receivedAmount', 'Alınan toplam ödeme (TL)', { required: true, maxLength: 12 }],
+      ['paymentDueDate', 'Kalan ödeme tarihi', { type: 'date' }],
+    ]) {
+      const input = field(label, `tracking-${name}`, { ...config, value: values[name] }); controls[name] = input.control;
+      if (name.endsWith('Amount')) input.control.inputMode = 'decimal';
+      form.append(input.wrapper);
+    }
+    const balance = el('p', 'tracking-balance', tracking.agreedAmountCents === null ? 'Anlaşılan tutarı girdiğinde kalan ödemeyi burada göreceksin.' : `${moneyFormat.format(tracking.remainingCents / 100)} kalan ödeme`);
+    const help = el('p', 'field-help', 'Tutarlar toplam kayıttır; yeni ödeme eklerken aldığın güncel toplamı gir. Bu işlem müşteriye bildirim göndermez. Takip zamanı tarayıcının yerel saatine göredir. İşi tamamlamak için yukarıdaki talep durumunu değiştir.');
+    const save = el('button', 'button secondary', 'Takibi kaydet ↗'); save.type = 'submit';
+    const status = el('p', 'message'); status.setAttribute('role', 'status');
+    form.addEventListener('input', () => { trackingDrafts.set(lead.id, Object.fromEntries(Object.entries(controls).map(([key, control]) => [key, control.value]))); message(status); });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault(); if (save.disabled || !form.reportValidity()) return;
+      const received = controls.receivedAmount.value.trim(); const agreed = controls.agreedAmount.value.trim();
+      if (!/^(0|[1-9]\d{0,8})(?:[.,]\d{1,2})?$/.test(received) || (agreed && !/^(0|[1-9]\d{0,8})(?:[.,]\d{1,2})?$/.test(agreed))) { message(status, 'Tutarı binlik ayırıcı olmadan gir. Örnek: 12500,50.'); return; }
+      const date = controls.nextActionAt.value ? new Date(controls.nextActionAt.value) : null;
+      if (date && Number.isNaN(date.getTime())) { message(status, 'Geçerli bir takip zamanı seç.'); return; }
+      const generation = authGeneration;
+      save.disabled = true;
+      try {
+        const result = await api(`/api/admin/leads/${encodeURIComponent(lead.id)}/tracking`, { method: 'PATCH', csrf: true, body: { stage: controls.stage.value, nextActionAt: date ? date.toISOString() : null, nextActionNote: controls.nextActionNote.value.trim(), agreedAmount: agreed || null, receivedAmount: received, paymentDueDate: controls.paymentDueDate.value || null } });
+        if (generation !== authGeneration) return;
+        const index = leads.findIndex((entry) => entry.id === lead.id);
+        if (index >= 0) leads[index] = result.lead ? { ...leads[index], ...result.lead, tracking: result.tracking || result.lead.tracking } : { ...leads[index], tracking: result.tracking };
+        trackingDrafts.delete(lead.id); renderList(); renderTrackingCount(leads);
+        if (selectedId === lead.id) {
+          renderDetail();
+          const updatedEditor = $('detail-content').querySelector('.lead-studio-block');
+          if (updatedEditor) { updatedEditor.open = true; message(updatedEditor.querySelector('.message'), 'İş takibi ve ödeme bilgileri kaydedildi.', 'success'); }
+        }
+      } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(status, error.message); }
+      finally { if (generation === authGeneration) save.disabled = false; }
+    });
+    form.append(balance, help, save, status); section.append(form); return section;
+  }
+
+  async function showTracking() {
+    if (!showStudioSection('tracking')) return;
+    await loadTracking();
+  }
+
+  async function loadTracking() {
+    if (!studioAllowed()) return;
+    const generation = authGeneration; const request = ++trackingRequest;
+    $('tracking-refresh').disabled = true; message($('tracking-message'));
+    try {
+      const result = await api('/api/admin/tracking');
+      if (generation !== authGeneration || request !== trackingRequest) return;
+      if (!Array.isArray(result.leads)) throw new ApiError('İş takibi okunamadı.', 0);
+      renderTracking(result.leads);
+    } catch (error) { if (generation === authGeneration && request === trackingRequest && !handleAuthError(error)) message($('tracking-message'), error.message); }
+    finally { if (generation === authGeneration && request === trackingRequest) $('tracking-refresh').disabled = false; }
+  }
+
+  function renderTracking(allLeads) {
+    renderTrackingCount(allLeads);
+    const active = allLeads.filter((lead) => lead.status !== 'completed' && lead.status !== 'archived');
+    const due = allLeads.filter((lead) => trackingOf(lead).actionOverdue || trackingOf(lead).paymentOverdue);
+    const balance = allLeads.reduce((sum, lead) => sum + (trackingOf(lead).remainingCents || 0), 0);
+    $('tracking-summary').replaceChildren();
+    for (const [label, value, note] of [['AKTİF İŞ', String(active.length), 'Gelen fikirlerden son teslimlere'], ['TAKİP ZAMANI GELEN', String(due.length), 'Görüşme veya ödeme hatırlatması'], ['KALAN ÖDEME', moneyFormat.format(balance / 100), 'Tamamlananlar dahil, tutarı kayıtlı tüm işler']]) {
+      const card = el('div', 'studio-card tracking-metric'); card.append(el('span', 'eyebrow', label), el('strong', '', value), el('span', '', note)); $('tracking-summary').append(card);
+    }
+    const reminders = $('tracking-reminders'); reminders.replaceChildren(el('h2', '', 'Bugünün dikkat isteyenleri.'));
+    if (!due.length) reminders.append(el('p', 'field-help', 'Zamanı gelen bir takip görünmüyor. Taleplerdeki “İş takibi ve ödeme” alanından sonraki adımı planlayabilirsin.'));
+    const list = el('ul', 'tracking-reminder-list');
+    for (const lead of due.sort((a, b) => (Date.parse(trackingOf(a).nextActionAt) || Infinity) - (Date.parse(trackingOf(b).nextActionAt) || Infinity))) {
+      const item = el('li'); const button = el('button', 'tracking-reminder'); button.type = 'button';
+      const tracking = trackingOf(lead); button.append(el('strong', '', lead.brand || lead.name), el('span', '', [tracking.actionOverdue ? `Takip: ${tracking.nextActionAt ? readableDate(tracking.nextActionAt, true) : 'zamanı geldi'}` : '', tracking.paymentOverdue ? `${moneyFormat.format(tracking.remainingCents / 100)} ödeme bekliyor` : ''].filter(Boolean).join(' · ')), el('small', '', tracking.nextActionNote || 'Talebe git ve sonraki adımı planla.'));
+      button.addEventListener('click', () => openTrackedLead(lead)); item.append(button); list.append(item);
+    }
+    reminders.append(list);
+    const board = $('tracking-board'); board.replaceChildren();
+    for (const [stage, title] of Object.entries(stages)) {
+      const column = el('section', 'tracking-column');
+      const entries = active.filter((lead) => trackingOf(lead).stage === stage);
+      const heading = el('h2', '', title); heading.append(el('span', '', entries.length)); column.append(heading);
+      if (!entries.length) column.append(el('p', 'tracking-column-empty', 'Bu aşama hazır.'));
+      for (const lead of entries) {
+        const card = el('button', 'tracking-lead-card'); card.type = 'button';
+        const tracking = trackingOf(lead); card.append(el('strong', '', lead.brand || 'İsimsiz marka'), el('span', '', lead.name || 'Proje talebi'));
+        if (tracking.nextActionAt) card.append(el('small', tracking.actionOverdue ? 'attention-text' : '', `↗ ${readableDate(tracking.nextActionAt, true)}`));
+        if (tracking.nextActionNote) card.append(el('span', 'tracking-card-note', tracking.nextActionNote));
+        if (tracking.agreedAmountCents !== null) card.append(el('small', '', `${moneyFormat.format(tracking.remainingCents / 100)} kalan`));
+        card.addEventListener('click', () => openTrackedLead(lead)); column.append(card);
+      }
+      board.append(column);
+    }
+  }
+
+  async function openTrackedLead(lead) {
+    const generation = authGeneration;
+    await showRequests(lead.status === 'completed' ? 'completed' : lead.status === 'archived' ? 'archived' : 'active');
+    if (generation !== authGeneration) return;
+    selectLead(lead.id);
+    const tracking = $('detail-content').querySelector('.lead-studio-block'); if (tracking) tracking.open = true;
+  }
+
+  function deliveryEditor(lead) {
+    const section = el('details', 'lead-studio-block delivery-editor');
+    section.append(el('summary', '', 'Müşteriye özel teslim ve onay ↗'));
+    section.append(el('p', 'field-help', 'Dosyalarını özel bir bağlantıyla paylaş. Müşterin revizyon notu bırakabilir veya mevcut sürümü onaylayabilir. Müşteri onayı işi otomatik tamamlamaz.'));
+    const list = el('div', 'delivery-list'); const messageNode = el('p', 'message'); messageNode.setAttribute('role', 'status');
+    const refresh = el('button', 'button secondary', 'Teslimleri yenile ↻'); refresh.type = 'button';
+    const generation = authGeneration;
+    let loaded = false; let loadSequence = 0;
+    const load = async () => {
+      const sequence = ++loadSequence;
+      refresh.disabled = true;
+      try {
+        const result = await api(`/api/admin/leads/${encodeURIComponent(lead.id)}/deliveries`);
+        if (generation !== authGeneration || sequence !== loadSequence || !section.isConnected) return;
+        if (!Array.isArray(result.deliveries)) throw new ApiError('Teslimler okunamadı.', 0);
+        list.replaceChildren();
+        if (!result.deliveries.length) list.append(el('p', 'field-help', 'Henüz özel teslim bağlantısı yok. İlk bağlantıyı aşağıdan oluştur.'));
+        for (const delivery of result.deliveries) { deliveryLeadIds.set(delivery.id, lead.id); list.append(deliveryCard(delivery, load)); }
+        loaded = true;
+      } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(messageNode, error.message); }
+      finally { if (generation === authGeneration) refresh.disabled = false; }
+    };
+    section.addEventListener('toggle', () => { if (section.open && !loaded) void load(); });
+    refresh.addEventListener('click', load);
+    const form = el('form', 'studio-form delivery-create'); form.append(el('h3', '', 'Yeni özel teslim oluştur'));
+    const title = field('Teslim başlığı', `delivery-title-${lead.id}`, { required: true, maxLength: 150, value: (lead.brand ? `${lead.brand} — proje teslimi` : 'Proje teslimi').slice(0, 150) });
+    const description = field('Müşteriye notun', `delivery-description-${lead.id}`, { tag: 'textarea', maxLength: 2000, placeholder: 'Bu sürümde neler var? Müşterin neyi kontrol etmeli?' });
+    const expires = field('Bağlantı geçerliliği', `delivery-expiry-${lead.id}`, { tag: 'select', value: '7', options: { 7: '7 gün', 14: '14 gün', 30: '30 gün' } });
+    const acknowledge = el('label', 'studio-checkbox'); const confirm = el('input'); confirm.type = 'checkbox'; confirm.required = true; confirm.id = `delivery-confirm-${lead.id}`;
+    acknowledge.append(confirm, el('span', '', 'Yeni bağlantı oluşturulduğunda bu talebin önceki teslim bağlantılarının kapanacağını biliyorum. Yeni teslim boş başlayacak.'));
+    const create = el('button', 'button secondary', 'Özel bağlantı oluştur ↗'); create.type = 'submit';
+    form.append(title.wrapper, description.wrapper, expires.wrapper, acknowledge, create);
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault(); if (create.disabled || !form.reportValidity()) return;
+      create.disabled = true; message(messageNode);
+      try {
+        const result = await api(`/api/admin/leads/${encodeURIComponent(lead.id)}/deliveries`, { method: 'POST', csrf: true, body: { title: title.control.value.trim(), description: description.control.value.trim(), expiresInDays: Number(expires.control.value) } });
+        if (generation !== authGeneration) return;
+        if (result.delivery?.id && typeof result.sharePath === 'string' && /^\/teslim#[a-f0-9]{64}$/.test(result.sharePath)) shareLinks.set(result.delivery.id, new URL(result.sharePath, location.origin).href);
+        confirm.checked = false; await load(); message(messageNode, 'Özel bağlantı oluşturuldu. Aşağıdaki bağlantıyı şimdi güvenle kopyala ve müşterinle kendin paylaş.', 'success');
+      } catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(messageNode, error.message); }
+      finally { if (generation === authGeneration) create.disabled = false; }
+    });
+    section.append(refresh, messageNode, list, form); return section;
+  }
+
+  function deliveryCard(delivery, reload) {
+    const card = el('section', 'delivery-card');
+    const statusNames = { pending: 'İnceleme bekliyor', revision_requested: 'Revizyon istendi', approved: 'Müşteri onayladı' };
+    const expired = Date.parse(delivery.expiresAt) <= Date.now(); const inactive = Boolean(delivery.revokedAt) || expired;
+    card.append(el('h3', '', delivery.title), el('span', 'delivery-status', delivery.revokedAt ? 'Bağlantı kapatıldı' : expired ? 'Bağlantı süresi doldu' : statusNames[delivery.status] || 'İnceleme bekliyor'), el('p', 'field-help', `Sürüm ${delivery.version} · Son geçerlilik: ${readableDate(delivery.expiresAt, true)}`));
+    if (delivery.description) card.append(el('p', 'delivery-note', delivery.description));
+    const status = el('p', 'message'); status.setAttribute('role', 'status');
+    const share = shareLinks.get(delivery.id);
+    if (share && !inactive) {
+      const fieldset = el('div', 'delivery-share'); const label = el('label', '', 'Özel müşteri bağlantısı'); const input = el('input'); input.type = 'text'; input.readOnly = true; input.value = share; input.id = `share-${delivery.id}`; label.htmlFor = input.id;
+      const copy = el('button', 'button secondary', 'Bağlantıyı kopyala'); copy.type = 'button';
+      copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(share); message(status, 'Bağlantı kopyalandı.', 'success'); } catch { input.focus(); input.select(); message(status, 'Bağlantı seçildi. Ctrl+C veya telefonunun kopyalama menüsünü kullan.', 'success'); } });
+      fieldset.append(label, input, copy, el('p', 'field-help', 'Bu bağlantı yalnızca mevcut oturumunda gösterilir. Bağlantıya sahip olan kişi teslimi görebilir; müşterinle özel olarak paylaş.')); card.append(fieldset);
+    } else if (!inactive) card.append(el('p', 'field-help', 'Güvenlik için özel bağlantı tekrar gösterilmez. Kaybettiysen yeni teslim oluştur; önceki bağlantı kapanır.'));
+    const list = el('ul', 'delivery-files');
+    for (const [index, asset] of (delivery.files || []).entries()) {
+      const row = el('li'); const url = localMediaUrl(asset.url);
+      const label = `${asset.mimeType?.startsWith('video/') ? 'Video' : asset.mimeType === 'application/pdf' ? 'PDF' : 'Görsel'} ${index + 1} · ${fileSize(asset.size)}`;
+      const link = el(url ? 'a' : 'span', '', label + (url ? ' ↗' : '')); if (url) { link.href = url; link.target = '_blank'; link.rel = 'noopener'; }
+      row.append(link);
+      if (!inactive) {
+        const remove = el('button', 'text-button', 'Kaldır'); remove.type = 'button';
+        remove.addEventListener('click', async () => {
+          if (!window.confirm('Bu dosya kaldırılsın mı? Müşteri onayı sıfırlanacak ve yeni sürüm oluşacak.')) return;
+          const generation = authGeneration; remove.disabled = true;
+          try { await api(`/api/admin/deliveries/${encodeURIComponent(delivery.id)}/files/${encodeURIComponent(asset.id)}`, { method: 'DELETE', csrf: true, body: {} }); if (generation === authGeneration) await reload(); }
+          catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(status, error.message); }
+          finally { if (generation === authGeneration) remove.disabled = false; }
+        }); row.append(remove);
+      }
+      list.append(row);
+    }
+    if (!list.childNodes.length) card.append(el('p', 'field-help', 'Henüz dosya eklenmedi. Müşterin dosya eklendiğinde inceleyebilir.')); else card.append(list);
+    if (!inactive) {
+      const selection = field('Teslim dosyası ekle', `delivery-file-${delivery.id}`, { type: 'file' }); selection.control.accept = 'video/mp4,video/webm,application/pdf,image/jpeg,image/png,image/webp';
+      const upload = el('button', 'button secondary', 'Dosyayı yükle ↑'); upload.type = 'button'; upload.disabled = true;
+      selection.control.addEventListener('change', () => { upload.disabled = !selection.control.files.length; });
+      upload.addEventListener('click', async () => {
+        const file = selection.control.files[0]; if (!file || upload.disabled) return;
+        const generation = authGeneration; upload.disabled = true; selection.control.disabled = true;
+        try { await uploadFile(`/api/admin/deliveries/${encodeURIComponent(delivery.id)}/files`, file, ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'application/pdf'], status); if (generation === authGeneration) await reload(); }
+        catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(status, error.message); }
+        finally { if (generation === authGeneration) { upload.disabled = false; selection.control.disabled = false; } }
+      });
+      card.append(selection.wrapper, upload, el('p', 'field-help', 'Görseller en fazla 8 MB; MP4, WebM ve PDF en fazla 100 MB. Dosya eklemek yeni sürüm oluşturur ve önceki onayı sıfırlar.'));
+    }
+    if (delivery.feedback?.length) {
+      const history = el('details', 'delivery-feedback'); history.append(el('summary', '', `Müşteri geri bildirimleri (${delivery.feedback.length})`)); const entries = el('ol');
+      for (const entry of delivery.feedback) { const item = el('li'); item.append(el('strong', '', entry.action === 'approve' ? '✓ Sürüm onaylandı' : '↗ Revizyon isteği'), el('small', '', `Sürüm ${entry.version} · ${readableDate(entry.createdAt, true)}`), el('p', '', entry.message || 'Ek not bırakılmadı.')); entries.append(item); }
+      history.append(entries); card.append(history);
+    }
+    if (!inactive) {
+      const revoke = el('button', 'button danger-outline', 'Bu bağlantıyı kapat'); revoke.type = 'button';
+      revoke.addEventListener('click', async () => {
+        if (!window.confirm('Bu özel teslim bağlantısı kapatılsın mı? Müşterin artık bu bağlantıyla dosyalara erişemez.')) return;
+        const generation = authGeneration; revoke.disabled = true;
+        try { await api(`/api/admin/deliveries/${encodeURIComponent(delivery.id)}/revoke`, { method: 'POST', csrf: true, body: {} }); if (generation === authGeneration) { shareLinks.delete(delivery.id); await reload(); } }
+        catch (error) { if (generation === authGeneration && !handleAuthError(error)) message(status, error.message); }
+        finally { if (generation === authGeneration) revoke.disabled = false; }
+      }); card.append(revoke);
+    }
+    card.append(status); return card;
+  }
 
   $('login-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -987,18 +1537,22 @@
     $('mobile-logout').disabled = true;
     $('security-mobile-logout').disabled = true;
     $('automation-mobile-logout').disabled = true;
+    $('portfolio-mobile-logout').disabled = true;
+    $('tracking-mobile-logout').disabled = true;
     try {
       await api('/api/admin/logout', { method: 'POST', body: {}, csrf: true });
       showLogin();
       message($('login-message'), 'Güvenli çıkış yapıldı.', 'success');
       $('username').focus();
     } catch (error) {
-      if (!handleAuthError(error)) message($(currentSection === 'security' ? 'security-message' : currentSection === 'automation' ? 'automation-message' : 'dashboard-message'), error.message);
+      if (!handleAuthError(error)) message($(({ security: 'security-message', automation: 'automation-message', portfolio: 'portfolio-message', tracking: 'tracking-message' })[currentSection] || 'dashboard-message'), error.message);
     } finally {
       $('logout-button').disabled = false;
       $('mobile-logout').disabled = false;
       $('security-mobile-logout').disabled = false;
       $('automation-mobile-logout').disabled = false;
+      $('portfolio-mobile-logout').disabled = false;
+      $('tracking-mobile-logout').disabled = false;
     }
   }
 
@@ -1006,6 +1560,17 @@
   $('mobile-logout').addEventListener('click', logout);
   $('security-mobile-logout').addEventListener('click', logout);
   $('automation-mobile-logout').addEventListener('click', logout);
+  $('portfolio-mobile-logout').addEventListener('click', logout);
+  $('tracking-mobile-logout').addEventListener('click', logout);
+  for (const id of ['portfolio-nav', 'mobile-portfolio-nav']) $(id).addEventListener('click', showPortfolio);
+  for (const id of ['tracking-nav', 'mobile-tracking-nav']) $(id).addEventListener('click', showTracking);
+  $('portfolio-refresh').addEventListener('click', loadProjects);
+  $('tracking-refresh').addEventListener('click', loadTracking);
+  $('project-new').addEventListener('click', () => {
+    if (projectDirty && !window.confirm('Kaydedilmemiş proje değişikliklerini bırakıp yeni bir proje açılsın mı?')) return;
+    selectedProjectId = null; projectDirty = false; renderProjects(); renderProjectEditor(null);
+    $('project-title').focus({ preventScroll: true });
+  });
   $('requests-nav').addEventListener('click', () => showRequests('active'));
   $('mobile-requests-nav').addEventListener('click', () => showRequests('active'));
   $('completed-nav').addEventListener('click', () => showRequests('completed'));
@@ -1028,7 +1593,7 @@
     renderList();
   }));
   window.addEventListener('beforeunload', (event) => {
-    if (!drafts.size && !backupCodes.length) return;
+    if (!drafts.size && !backupCodes.length && !projectDirty && !trackingDrafts.size && !uploads.size) return;
     event.preventDefault();
     event.returnValue = '';
   });

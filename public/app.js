@@ -11,17 +11,38 @@ if(form){
  const select=form.querySelector('#plan');const requested=new URLSearchParams(location.search).get('paket');
  if([...select.options].some(option=>option.value===requested))select.value=requested;
  const status=document.querySelector('#form-status');const submit=form.querySelector('[type="submit"]');const label=submit.querySelector('.submit-label');
- let requestId=crypto.randomUUID();let sending=false;
+ const steps=[...form.querySelectorAll('[data-brief-step]')];const progress=[...form.querySelectorAll('.brief-progress li')];
+ const back=form.querySelector('#brief-back');const next=form.querySelector('#brief-next');
+ let requestId=crypto.randomUUID();let sending=false;let currentStep=0;
+ form.noValidate=true;
+ function showStep(index,focus=false){
+  currentStep=index;steps.forEach((step,i)=>{step.hidden=i!==index;});
+  progress.forEach((item,i)=>{if(i===index)item.setAttribute('aria-current','step');else item.removeAttribute('aria-current');item.dataset.done=String(i<index);});
+  back.hidden=index===0;next.hidden=index===steps.length-1;submit.hidden=index!==steps.length-1;
+  if(focus)steps[index].querySelector('h3').focus({preventScroll:false});
+ }
+ function validateStep(index){
+  const invalid=[...steps[index].querySelectorAll('input,select,textarea')].find(field=>!field.checkValidity());
+  if(!invalid)return true;
+  showStep(index);invalid.reportValidity();return false;
+ }
+ next.addEventListener('click',()=>{if(!sending&&validateStep(currentStep))showStep(currentStep+1,true);});
+ back.addEventListener('click',()=>{if(!sending)showStep(Math.max(0,currentStep-1),true);});
+ showStep(0);
  form.addEventListener('submit',async event=>{
   event.preventDefault();if(sending)return;
-  sending=true;submit.disabled=true;form.setAttribute('aria-busy','true');label.textContent='Talebiniz gönderiliyor…';status.textContent='';
+  if(currentStep<steps.length-1){if(validateStep(currentStep))showStep(currentStep+1,true);return;}
+  for(let i=0;i<steps.length;i++)if(!validateStep(i))return;
   const data=new FormData(form);const body=Object.fromEntries(data);body.consent=data.get('consent')==='on';body.requestId=requestId;
+  body.briefDetails={service:data.get('service'),goal:data.get('goal').trim(),location:data.get('location').trim(),deadline:data.get('deadline')||null,budgetRange:data.get('budgetRange')};
+  for(const key of ['service','goal','location','deadline','budgetRange'])delete body[key];
+  sending=true;submit.disabled=true;back.disabled=true;next.disabled=true;form.setAttribute('aria-busy','true');label.textContent='Talebiniz gönderiliyor…';status.textContent='';
   try{
    const response=await fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
    const result=await response.json();if(!response.ok)throw new Error(result.error||'Talebiniz gönderilemedi.');
-   status.textContent=result.message;form.dataset.state='success';form.reset();requestId=crypto.randomUUID();
+   status.textContent=result.message;form.dataset.state='success';form.reset();requestId=crypto.randomUUID();showStep(0);
   }catch(error){form.dataset.state='error';status.textContent=error.name==='TimeoutError'?'Yanıt gecikti. Bağlantınızı kontrol edip tekrar deneyin.':error.message==='Failed to fetch'?'Bağlantı kurulamadı. Lütfen tekrar deneyin veya bize e-posta ile ulaşın.':error.message;}
-  finally{sending=false;submit.disabled=false;form.removeAttribute('aria-busy');label.textContent='Projeyi konuşmaya başlayalım';}
+  finally{sending=false;submit.disabled=false;back.disabled=false;next.disabled=false;form.removeAttribute('aria-busy');label.textContent='Talebimi gönder';}
  });
 }
 const privacy=document.querySelector('#privacy');

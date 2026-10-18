@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="theme-color" content="#0b0b0c">
+  <title>Proje teslimi — Ordvis Creative</title>
+  <link rel="icon" href="/favicon.png?v=ordvis-20261017" type="image/png">
+  <link rel="stylesheet" href="/delivery.css">
+  <script src="/delivery.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#delivery-main">İçeriğe geç</a>
+  <header class="delivery-header"><a href="/" aria-label="Ordvis Creative ana sayfa"><img src="/media/ordvis-logo.png" alt="Ordvis Creative" width="1134" height="868"></a><span>STÜDYO / PROJE TESLİMİ</span></header>
+  <main id="delivery-main">
+    <section id="delivery-state" class="delivery-state" aria-live="polite"><span class="eyebrow">ORDVIS CREATIVE</span><h1 id="state-title">Projen hazırlanıyor.</h1><p id="state-description">Teslim bağlantın kontrol ediliyor…</p><button id="state-retry" class="button secondary" type="button" hidden>Tekrar dene ↻</button><a id="state-contact" class="button secondary" href="/iletisim" hidden>Stüdyoya ulaş ↗</a></section>
+    <div id="delivery-content" hidden>
+      <section class="delivery-intro" aria-labelledby="delivery-title"><div><span class="eyebrow">FİKİRDEN SON KAREYE.</span><h1 id="delivery-title" tabindex="-1"></h1><p id="delivery-description"></p></div><div class="delivery-meta"><span id="delivery-status" class="status-pill"></span><span id="delivery-version"></span><span id="delivery-expiry"></span></div></section>
+      <p id="delivery-message" class="message" role="status" aria-live="polite"></p>
+      <div class="delivery-layout">
+        <section class="assets-section" aria-labelledby="assets-title"><div class="section-heading"><h2 id="assets-title">İşine yakından bak.</h2><span id="asset-count"></span></div><div id="delivery-files" class="delivery-files"></div></section>
+        <aside class="review-section" aria-labelledby="review-title"><span class="eyebrow">SÖZ SENDE</span><h2 id="review-title">Son dokunuş.</h2><p>Dosyaları incele. Düzenleme istediğin yerleri paylaş veya bu sürümü onayla.</p><form id="revision-form"><label for="revision-message">Revizyon notun</label><textarea id="revision-message" name="message" rows="6" maxlength="2000" required placeholder="Örn. 00:18’deki geçişi biraz yavaşlatabilir miyiz?"></textarea><p class="field-help">Sahneyi ve mümkünse zaman kodunu belirtmen işimizi kolaylaştırır.</p><button id="revision-submit" type="submit" class="button secondary">Revizyon iste ↗</button></form><div class="approval-area"><p id="approval-description">Her şey hazırsa bu sürümü onaylayabilirsin.</p><button id="approve-open" type="button" class="button primary">Bu sürümü onayla ✓</button></div><button id="delivery-refresh" type="button" class="text-button">↻ Son durumu kontrol et</button></aside>
+      </div>
+      <section class="feedback-section" aria-labelledby="feedback-title"><div class="section-heading"><h2 id="feedback-title">Projenin not defteri.</h2><span>REVİZYON & ONAY</span></div><p id="feedback-empty">Henüz not yok. İlk geri bildirimin burada görünecek.</p><ol id="feedback-list" class="feedback-list"></ol></section>
+      <p class="private-note">Bu özel bağlantıya sahip kişiler proje dosyalarına erişebilir. Bağlantıyı yalnızca proje ekibinle paylaş. Süre dolduğunda stüdyodan yeni bağlantı isteyebilirsin.</p>
+    </div>
+  </main>
+  <footer class="delivery-footer"><span>ORDVIS CREATIVE</span><span>İyi bir iş. Birlikte.</span><a href="mailto:ordviscreative@gmail.com">Stüdyoya ulaş ↗</a></footer>
+  <dialog id="approval-dialog" aria-labelledby="approval-title"><form id="approval-form"><span class="eyebrow">SON KONTROL</span><h2 id="approval-title">Bu sürüm hazır mı?</h2><p id="approval-version"></p><label class="approval-confirmation"><input id="approval-confirmation" type="checkbox" required><span>Bu sürümdeki dosyaları inceledim ve teslimi onaylıyorum.</span></label><p id="approval-error" class="message" role="status"></p><div class="dialog-actions"><button id="approve-cancel" type="button" class="button secondary">İncelemeye dön</button><button id="approve-submit" type="submit" class="button primary">Onayı gönder ✓</button></div></form></dialog>
+</body>
+</html>

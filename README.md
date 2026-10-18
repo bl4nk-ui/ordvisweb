@@ -1,6 +1,6 @@
 # Ordvis Creative
 
-Yedi sayfalı ajans sitesi ve iki aşamalı korunan **stüdyo yönetim paneli** ve kontrollü asistan raporu. Teklif formu bilgileri aynı sunucudaki SQLite veritabanına kaydeder; WhatsApp'a yönlendirme yapmaz. Groq trafiğinin güvenli proxy desteği için sabit sürümlü `undici` bağımlılığı kullanılır. Node.js **22.13 veya üzeri**, tercihen güncel Node.js LTS gereklidir (Node 24 ile doğrulandı).
+Çok sayfalı ajans sitesi, panelden yönetilen portfolyo, özel müşteri teslim alanı ve iki aşamalı korunan **stüdyo yönetim paneli**. Kontrollü asistan raporu ve saatlik Groq özeti içerir. Teklif formu bilgileri aynı sunucudaki SQLite veritabanına kaydeder; WhatsApp'a yönlendirme yapmaz. Groq trafiğinin güvenli proxy desteği için sabit sürümlü `undici` bağımlılığı kullanılır. Node.js **22.13 veya üzeri**, tercihen güncel Node.js LTS gereklidir (Node 24 ile doğrulandı).
 
 ## Kendi bilgisayarında başlatma
 
@@ -34,7 +34,7 @@ npm run build
 git add --renormalize -- "public/*.html"
 ```
 
-Yerel değişiklikler `git stash list` içinde korunur; `.data/` içindeki hesap, talepler ve anahtarlar bu Git işlemlerine dahil değildir. `build` ve `add --renormalize` adımlarını yalnız yedekleme ve pull başarılı olduktan sonra çalıştırın; eski Windows kopyalarındaki HTML çıktıları ve Git'in satır sonu kaydı bir kez yenilenir. Güncel kaynaklardan üretilen sayfaların metni aynı kaldığı için yalnız satır sonu yenilemesi commit gerektirmez. Oluşturulan HTML dosyalarını eski sürüme döndürmemek için yedeği otomatik olarak `git stash pop` ile uygulamayın; gerçekten yaptığınız içerik düzenlemeleri varsa yedekten ayrıca karşılaştırılabilir. Windows'ta Git'in CRLF satır sonları ile Node'un LF çıktısının oluşturduğu tekrarlayan değişiklikler `.gitattributes` ve kaynak satır sonu normalizasyonuyla önlenir. Sayfa düzenlemelerini `scripts/build.mjs` veya `content/` kaynaklarında yapın; `public/` altındaki yedi oluşturulan HTML dosyası bir sonraki build sırasında yeniden yazılır.
+Yerel değişiklikler `git stash list` içinde korunur; `.data/` içindeki hesap, talepler ve anahtarlar bu Git işlemlerine dahil değildir. `build` ve `add --renormalize` adımlarını yalnız yedekleme ve pull başarılı olduktan sonra çalıştırın; eski Windows kopyalarındaki HTML çıktıları ve Git'in satır sonu kaydı bir kez yenilenir. Güncel kaynaklardan üretilen sayfaların metni aynı kaldığı için yalnız satır sonu yenilemesi commit gerektirmez. Oluşturulan HTML dosyalarını eski sürüme döndürmemek için yedeği otomatik olarak `git stash pop` ile uygulamayın; gerçekten yaptığınız içerik düzenlemeleri varsa yedekten ayrıca karşılaştırılabilir. Windows'ta Git'in CRLF satır sonları ile Node'un LF çıktısının oluşturduğu tekrarlayan değişiklikler `.gitattributes` ve kaynak satır sonu normalizasyonuyla önlenir. Sayfa düzenlemelerini `scripts/build.mjs` veya `content/` kaynaklarında yapın; `public/` altındaki oluşturulan genel HTML dosyaları bir sonraki build sırasında yeniden yazılır.
 
 ## Talep akışı ve yönetim paneli
 
@@ -54,6 +54,35 @@ Yerel değişiklikler `git stash list` içinde korunur; `.data/` içindeki hesap
 - Veri yapısı ilk açılışta işlem bütünlüğü korunarak güncellenir; mevcut yönetici, MFA, talepler, notlar ve özetler korunur. Güncellemeden önce sunucuyu durdurup tüm `DATA_DIR` klasörünü güvenli şekilde yedekleyin.
 
 Kayıtlar varsayılan olarak **`.data/ordvis.sqlite`** dosyasındadır. **`.data/mfa.key`**, Authenticator anahtarının AES-256-GCM şifrelemesi için üretilen yerel anahtardır; veritabanı ile birlikte korunmalı ve yedeklenmelidir. Tek kullanımlık kurtarma kodlarının yalnız hashleri tutulur. Anahtar dosyası kaybolduğunda sistem yeni anahtar uydurmaz; yedekten geri yükleme gerekir. `.data/` Git'e dahil edilmez ve HTTP üzerinden sunulmaz. Kayıtlar **uygulamanın çalıştığı makinede** tutulur; GitHub veri deposu değildir. Siteyi başka makineye klonlamak talepleri veya hesabı taşımaz. Yeni barındırmada aynı site ve panelin aynı kalıcı veri dizinini kullanması gerekir.
+
+## Portfolyoyu kod yazmadan yönetme
+
+1. `/admin` → **Portfolyo** bölümünde proje oluşturun. Başlık, kategori, özet ve isterseniz müşteri adı, amaç, yaklaşım ve sonuç metinlerini girin. Kayıt başlangıçta taslaktır.
+2. Kapağı JPG/PNG/WebP olarak yükleyin (en fazla **8 MiB**). Ana video MP4/WebM olabilir (en fazla **100 MiB**). Gerçek önce/sonra karşılaştırması için ilgili iki dosyayı ekleyin; desteklenen görseller de kullanılabilir.
+3. **Yayına al** seçeneğini kaydedince proje `/isler` sayfasında ve `/isler/proje-baglantisi` adresinde görünür. Kategori filtreleri yalnız yayınlanan projeleri gösterir. Taslağa dönmek genel API ve dosya erişimini kapatır; daha önce ziyaretçilerin indirdiği kopyalar geri alınamaz.
+4. Projeyi veya bir dosyayı panelden silebilirsiniz. Silme bağlı dosyaları da kaldırır. Yalnız paylaşma hakkınız olan, müşteri izni alınmış işleri yayınlayın. Başlangıçta örnek müşteri/proje üretilmez.
+
+Portfolyo kaydı ve medya dosyaları GitHub'a yazılmaz; çalışan sunucunun `DATA_DIR` dizininde tutulur. Bu içerikler normal site güncellemelerinde korunur; yeni sunucuya taşırken tüm veri dizinini taşıyın. Taslak önizlemeleri yalnız MFA doğrulanmış yöneticiye açıktır.
+
+## Adımlı brief ve iş takibi
+
+İletişim formu hizmet/hedef → proje ayrıntıları → iletişim/onay adımlarından oluşur. Lokasyon, hedef teslim tarihi ve yaklaşık bütçe ayrıca yönetici panelinde görünür. Geri dönüp düzeltme yapılabilir; son onay verilmeden talep gönderilmez. Bu ek alanlar özel yönetici verisidir; Groq'a ayrıca gönderilmez.
+
+**İş takibi** alanında ilk talep, teklif, müşteri dönüşü, planlama, üretim, inceleme ve teslim aşamalarını izleyin. Talep detayında sonraki görüşme tarihi/notu, anlaşılan tutar, toplam alınan ödeme ve ödeme vadesini kaydedin. Kalan tutar tam sayı kuruşla hesaplanır; tutar bilinmiyorsa kalan uydurulmaz. Gecikmiş dönüş/ödeme uyarıları panel içinde görünür; e-posta/SMS veya müşteriye otomatik mesaj gönderilmez. Aşama kaydı, mevcut Yeni/Görüşülüyor/Tamamlandı klasörlerinden ayrıdır; teslim aşamasına almak tek başına işi tamamlamaz.
+
+Tahsilat toplam değerdir; taksit hareketleri, muhasebe defteri veya çevrimiçi ödeme sistemi değildir. Aktif işte sıfır/avans girebilirsiniz; tamamlanmış işin tahsilatı pozitif kalmalıdır. İşin **Tamamlandı** klasörüne alınması yine yönetici tarafından ve ödeme kontrolüyle yapılır.
+
+## Müşteriye özel teslim, revizyon ve onay
+
+1. Talep detayındaki teslim alanında başlık, açıklama ve **1–30 gün** erişim süresiyle bağlantı oluşturun (varsayılan 7 gün). Aynı talep için yeni bağlantı oluşturmak önceki bağlantıları ve görüntüleme oturumlarını kapatır.
+2. MP4/WebM, JPG/PNG/WebP veya PDF yükleyin. Görseller 8 MiB, video/PDF 100 MiB; teslim başına en fazla **20 dosya** kabul edilir. Toplam disk kullanımı için hosting kotası ve yedekleme düzeni gerekir. Video dönüştürme, sıkıştırma ve zararlı yazılım taraması yapılmaz; dosyalar yetkili yönetici tarafından yüklenir.
+3. Oluşturulan özel bağlantıyı kopyalayıp müşteriye kendiniz iletin. Bağlantı sırrı **yalnız oluşturulduğunda** gösterilir; kaybolursa yeni bağlantı oluşturun. Yerel bilgisayardaki adresler yalnız o bilgisayarda açılır; müşterinin erişmesi için site HTTPS ve kalıcı diskli bir sunucuda yayınlanmalıdır.
+4. Müşteri bağlantıda dosyaları görüntüler/indirir, zaman koduyla revizyon notu bırakır veya incelediği sürümü açık onayla kabul eder. Bu notlar ve sürüm/onay bilgisi admin panelinde görünür. Müşteriye telefon/e-posta, iç notlar, ödeme ve diğer talepler gösterilmez.
+5. Dosya eklemek/silmek yeni sürüm oluşturur, önceki onayı sıfırlar ve mevcut medya oturumlarını iptal eder. Eski sürüme gönderilen onay reddedilir. Müşteri onayı tahsilat veya iş tamamlama işlemi yapmaz. Bağlantıyı panelden her an iptal edebilirsiniz.
+
+Bağlantı 256 bit rastgele sır içerir; veritabanında yalnız SHA-256 özeti tutulur. Sır URL'nin `#` bölümündedir; normal HTTP URL'sine/referrer'a gönderilmez. İstemci API'ye Authorization başlığıyla erişir; video/görsel için süreli, sürüme bağlı, HttpOnly/SameSite=Strict ve HTTPS'te Secure görüntüleme çerezi kullanılır. Bağlantıyı bilen herkes erişebilir; müşteriye hesap doğrulaması sunulmaz. Özel yanıtlar/dosyalar önbelleğe alınmaz, sayfa arama motorlarına kapalıdır ve üçüncü taraf kaynak kullanmaz. İptal, süre dolması ve talep silme erişimi kapatır; alınmış dosya kopyalarını geri alamaz.
+
+Talebi kalıcı silmek bağlı teslim metadatasını, geri bildirimleri, görüntüleme oturumlarını ve dosyalarını da temizler. Portfolyo bağımsız yönetilir; bir talebi silmek ayrı yayınlanan portfolyo projesini silmez. Yedeklemede SQLite ve `mfa.key` yanında **`studio-media/` klasörü** de korunmalıdır.
 
 ## Asistanla talep inceleme
 
@@ -103,7 +132,7 @@ PUBLIC_ORIGIN=https://ajansiniz.example
 DATA_DIR=/kalici-disk/ordvis
 ```
 
-`PUBLIC_ORIGIN` protokol + alan adı olmalıdır; sonunda `/` veya alt yol kullanmayın. Canlı ortam HTTPS origin olmadan başlamaz. Güvenlik başlıklarını koruyan reverse proxy kullanın; HTTPS PUBLIC_ORIGIN ayarlı yanıtlar HSTS içerir; proxy bu başlığı korumalıdır. `PORT` hosting sağlayıcısı tarafından atanabilir. Yönetici hesabını **yayın sunucusunda** bir kez `npm run admin:setup` ile oluşturun; geliştirme parolasını taşımayın. Salt SQLite yedeği değil tüm gerekli veri için uygun yedekleme politikası belirleyin.
+`PUBLIC_ORIGIN` protokol + alan adı olmalıdır; sonunda `/` veya alt yol kullanmayın. Canlı ortam HTTPS origin olmadan başlamaz. Güvenlik başlıklarını koruyan reverse proxy kullanın; HTTPS PUBLIC_ORIGIN ayarlı yanıtlar HSTS içerir; proxy bu başlığı korumalıdır. `PORT` hosting sağlayıcısı tarafından atanabilir. Dosya yükleme kullanılacaksa reverse proxy en az 100 MiB istek gövdesine ve 120 saniyelik yüklemeye izin vermelidir; uygulama kendi daha dar tür/boyut sınırlarını korur. Kalıcı diskte veritabanı ve `studio-media/` birlikte yedeklenmelidir. Yönetici hesabını **yayın sunucusunda** bir kez `npm run admin:setup` ile oluşturun; geliştirme parolasını taşımayın. Salt SQLite yedeği değil tüm gerekli veri için uygun yedekleme politikası belirleyin.
 
 Tek ve güvenilir bir reverse proxy doğrudan istemci erişimini engelliyorsa `TRUST_PROXY=1` kullanılabilir; yalnız en sağdaki `X-Forwarded-For` IP'si kabul edilir. Varsayılan olarak bu başlığa güvenilmez, bağlantı IP'si kullanılır. Vekilin tüm ziyaretçileri aynı IP'de toplaması form limitini ortaklaştırabilir; ayarı gerçek hosting yapısına göre seçin. Birden fazla proxy için ayrıca yapılandırma gerekir.
 
@@ -115,23 +144,26 @@ Aydınlatma metni mevcut form kullanımını açıklar. Canlıya çıkarken ajan
 - Oturumlar kriptografik rastgele token, **HttpOnly / SameSite=Strict** çerez kullanır. HTTPS için **Secure ve `__Host-` öneki** uygulanır. Tam oturum 4 saat, boşta kalma 15 dakika; MFA kurulum oturumu en fazla 10 dakikadır. Panel de 15 dakika sonunda ekrandaki verileri temizler. Parola/MFA/kurtarma değişiklikleri kalıcı hesap sürümü ile tüm eski oturumları iptal eder.
 - Yazma istekleri aynı kaynak doğrulaması ve JSON içerik türü gerektirir. Yönetici değişiklikleri ayrıca oturuma bağlı CSRF token ile korunur.
 - RFC 6238 TOTP (SHA-1, 6 hane, 30 saniye, ±1 adım), veritabanında atomik tekrar engeli ve tek kullanımlık kurtarma kodları uygulanır. Authenticator anahtarı AES-256-GCM ile şifrelenir; bu koruma yalnız veritabanı kopyasının ele geçirilmesine karşıdır. Sunucunun/anahtar dosyasının ele geçirilmesine karşı garanti değildir. Kişisel talep verileri SQLite içinde düz tutulur; disk şifrelemesi ve sınırlı sunucu erişimi gerekir.
-- Parametreli SQL, sunucu tarafı alan uzunluğu/biçim doğrulaması, 16 KiB gövde sınırı, honeypot ve IP bazlı hız sınırları uygulanır. Genel sınır 120 istek/dakika, form sınırı 5 kabul/10 dakika; giriş sınırı 5 deneme/15 dakikadır. Başarılı giriş deneme sayısını sıfırlar. İkinci faktör için doğru parola sonrasında IP’ler arasında ortak 10 deneme/15 dakika limiti uygulanır; başarı sıfırlar. En fazla 2 eşzamanlı scrypt işi kabul edilir. Giriş ve ikinci faktör limitleri servis yeniden başlatılarak aşılamaz. Sınırlı güvenlik olay kaydı, parola/kod/talep içeriği olmadan en fazla 30 gün ve 1000 kayıt saklanır.
+- Parametreli SQL, sunucu tarafı alan uzunluğu/biçim doğrulaması, JSON için 16 KiB gövde sınırı (portfolyo metadatasında Unicode metinler için 64 KiB), ayrı sınırlı medya akışı, honeypot ve IP bazlı hız sınırları uygulanır. Genel sınır 120 istek/dakika, form sınırı 5 kabul/10 dakika; giriş sınırı 5 deneme/15 dakikadır. Başarılı giriş deneme sayısını sıfırlar. İkinci faktör için doğru parola sonrasında IP’ler arasında ortak 10 deneme/15 dakika limiti uygulanır; başarı sıfırlar. En fazla 2 eşzamanlı scrypt işi kabul edilir. Giriş ve ikinci faktör limitleri servis yeniden başlatılarak aşılamaz. Sınırlı güvenlik olay kaydı, parola/kod/talep içeriği olmadan en fazla 30 gün ve 1000 kayıt saklanır.
 - Tekrar denemeler aynı `requestId` ile aynı kayda gider; çift kayıt oluşturmaz.
 - Admin arayüzü kullanıcı içeriğini yalnız metin olarak gösterir; HTML çalıştırmaz. Şifre veya oturum token'ı localStorage'a yazılmaz.
 - Geliştirme sunucusu varsayılan olarak yalnız `127.0.0.1` üzerinde dinler; üretimde `0.0.0.0`, gerektiğinde `HOST` açıkça ayarlanabilir. Çapraz site Fetch Metadata istekleri reddedilir; proxy başlığına varsayılan güvenilmez.
 - Sıkı CSP, frame engelleme, MIME koklama engelleme ve no-store özel veri yanıtları. Yalnız genel dosyalar açık izin listesiyle sunulur.
 
-Bu kontroller bir penetrasyon testi veya mutlak güvenlik garantisi değildir. İleride ödeme, dosya yükleme, ek kullanıcı rolleri ya da dış entegrasyon eklenirse bu yüzeyler ayrıca ele alınmalıdır.
+Bu kontroller bir penetrasyon testi veya mutlak güvenlik garantisi değildir. Dosya yükleme yalnız tam MFA oturumuna açıktır; ham akışta boyut ve dosya imzası kontrolü, rastgele sunucu dosya adları ve son gövde sonrası yetki/nesne varlığı kontrolü uygulanır. SVG/HTML/çalıştırılabilir dosya ve dış URL indirme kabul edilmez. Yeni kullanıcı rolleri ve çevrimiçi ödeme eklenirse bunlar ayrıca incelenmelidir.
 
 ## Sayfalar ve içerik
 
-`/`, `/produksiyon`, `/drone`, `/kurgu`, `/dijital`, `/paketler`, `/iletisim` ve özel giriş sayfası `/admin`.
+`/`, `/produksiyon`, `/drone`, `/kurgu`, `/dijital`, `/paketler`, `/iletisim`, `/isler`, yayınlanmış `/isler/:slug`, özel bağlantıyla `/teslim` ve yönetici giriş sayfası `/admin`.
 
 - `scripts/build.mjs`: ortak sayfa şablonları; `content/` fiyat ve form kaynakları.
 - `public/*.html`: oluşturulan sayfalar. Şablon değişikliklerinde `npm run build` çalıştırın.
 - `public/style.css`, `public/app.js`: public site. `public/admin.*`: ayrı yönetim arayüzü.
 - `public/media/ordvis-logo.png`: paylaşılan logo referansından hazırlanan, amblem ve **ORDVIS / CREATIVE** yazısını birlikte taşıyan şeffaf web görseli; tüm sayfaların üst/alt kısmı ve panel aynı dosyayı kullanır. `ordvis-mark.png` yalnız amblemdir. `public/favicon.png` sekme simgesidir; logo dosyaları vektör kaynak değil raster web çıktılarıdır. En-boy oranını koruyun, yazıları tekrar bir fontla oluşturmayın.
 - `lib/store.mjs`, `lib/api.mjs`, `server.mjs`: kalıcı kayıt, yetki ve HTTP katmanı.
+- `lib/studio-store.mjs`, `lib/studio-api.mjs`: portfolyo, yapılandırılmış brief ve iş/ödeme takibi.
+- `lib/delivery-store.mjs`, `lib/delivery-api.mjs`, `lib/media-files.mjs`: özel teslim bağlantıları, sürüm/onay ve sınırlı akış dosya yükleme/Range sunumu.
+- `public/studio.*`: portfolyo, gerçek önce/sonra ve brief adımları; `public/delivery.*`: bağımsız müşteri teslim arayüzü.
 - `lib/lead-payment.mjs`: tamamlanan işlerde zorunlu tahsilatın tam sayı kuruşa dönüşümü ve tutar sınırları.
 - `scripts/admin-setup.mjs`: maskeli terminal hesabı kurulumu.
 - `scripts/ai-setup.mjs`, `lib/ai-summary.mjs`, `lib/automation.mjs`: Groq anahtarı, kısıtlı istemci ve kalıcı saatlik iş.
@@ -160,3 +192,7 @@ Logo düzeltmesinde yedi genel sayfa ve panel 1440/390/320 px Chromium'da kontro
 Siyah-beyaz tema ayrıca aynı ekran genişliklerinde; mobil menü, paket karşılaştırması, kurgu aşamaları/oynatma, hareket azaltmalı drone, gizlilik penceresi ve gerçek form → geçici SQLite kaydı akışıyla kontrol edildi. Yeni panel görünümünde MFA, ödeme ile tamamlama, yeniden açma, onaylı silme, oturum kilidi ve sahte sağlayıcıyla saatlik özet akışı doğrulandı. Görsel kontrolde taşma veya JavaScript/CSP/görsel yükleme hatası görülmedi. Bu görsel güncelleme için build, sözdizimi ve mevcut dört sunucu/genel dosya testi geçti; gerçek müşteri verisi veya Groq çağrısı kullanılmadı.
 
 Chromium ile 320/390/768/1440 px tüm sayfalar ve panel; gerçek form > veritabanı > giriş > talep detayları > durum/not kaydı > sayfa yenileme > çıkış akışı doğrulandı. Zararlı HTML örnekleri metin olarak kaldı. Maskeli yönetici kurulum komutu, yanlış eski parolayla değişiklik reddi ve hesap değiştirme ayrıca geçici veride denendi. Gerçek tarayıcıda MFA → otomasyon izni → ileri alınmış saat → sahte Groq HTTP yanıtı → SQLite özet → sayfa yenileme → kapatma/çıkış akışı ve anahtarın maskeli kurulumu doğrulandı. Gerçek tarayıcıda ilk MFA kurulumu, kurtarma koduyla giriş, kod yenileme, cihaz değiştirme ve kontrollü asistan raporu indirme de doğrulandı. Kontroller Linux üzerinde yürütüldü; Windows üzerinde doğrudan koşulmadı.
+
+Portfolyo/teslim/iş takibi güncellemesinde build ve tüm sözdizimi kontrolleri, **104 test** (86 mevcut + 18 yeni güvenlik/veri entegrasyon testi) ve bağımlılık taraması geçti; tarama 0 bilinen açık bildirdi. Yeni testler taslak/yayın ayrımını, medya imzası/boyutu/Range/HEAD erişimini, iptal edilen yükleme temizliğini, tam kuruş hesabını, yapılandırılmış brief mahremiyetini, token hashlerini, teslim oturumu kapsamını, sürüm/onay yarışlarını ve silme/çıkış sırasında devam eden yüklemelerin kayıt oluşturamamasını doğrular.
+
+Gerçek Chromium'da geçici SQLite/MFA ve oynatılabilir WebM ile panelden proje oluşturma → kapak/video/önce/sonra yükleme → yayınlama/gizleme → filtreli portfolyo ve senkron karşılaştırma; adımlı brief → kayıt → iş takibi/parçalı ödeme/gecikme uyarısı; özel bağlantı oluşturma → video → müşteri revizyon/onayı → panelde geri bildirim → yeni sürüm/iptal akışları doğrulandı. Ödeme ile tamamlanan işin ayrı klasöre taşınması da kontrol edildi. Genel sayfalar, proje detayı ve yeni panel bölümleri 1440/1024/900/390/320 px genişliklerde kontrol edildi; taşma, kırık görsel veya JavaScript/CSP hatası görülmedi. Brief Geri butonunun kontrastı düzeltildi. Gerçek müşteri verisi ve gerçek Groq çağrısı kullanılmadı; canlı sunucuya dağıtım yapılmadı.

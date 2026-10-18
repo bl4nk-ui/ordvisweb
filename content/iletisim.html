@@ -6,15 +6,28 @@
   <p class="contact-links"><a href="tel:+905307168808">0530 716 88 08</a><br><a href="mailto:ordviscreative@gmail.com">ordviscreative@gmail.com</a></p>
  </div>
  <form id="brief-form" method="post" action="/api/leads">
-  <div class="form-heading"><span>PROJENİZİ TANIYALIM</span><p>İyi bir başlangıç için birkaç detay yeterli.</p></div>
-  <label for="name">Adınız soyadınız <span aria-hidden="true">*</span></label><input id="name" name="name" placeholder="Size nasıl hitap edelim?" maxlength="100" required autocomplete="name">
-  <label for="brand">Markanız / proje adınız <span aria-hidden="true">*</span></label><input id="brand" name="brand" placeholder="Hangi marka için üretiyoruz?" maxlength="100" required autocomplete="organization">
-  <div class="form-row"><div><label for="email">E-posta adresiniz <span aria-hidden="true">*</span></label><input id="email" name="email" type="email" placeholder="ornek@markaniz.com" maxlength="254" required autocomplete="email"></div><div><label for="phone">Telefon <span class="optional">(isteğe bağlı)</span></label><input id="phone" name="phone" type="tel" placeholder="05xx xxx xx xx" maxlength="40" autocomplete="tel"></div></div>
-  <label for="plan">Nereden başlayalım?</label><select id="plan" name="plan"><option>Birlikte karar verelim</option><option>Vitrin</option><option>Büyüme</option><option>Prestij</option><option>Tek seferlik proje</option></select>
-  <label for="brief">Aklınızdaki proje <span aria-hidden="true">*</span></label><textarea id="brief" name="brief" rows="3" maxlength="2000" placeholder="Hedefiniz, ihtiyacınız ve varsa düşündüğünüz takvim…" required></textarea>
+  <div class="form-heading"><span>PROJENİZİ TANIYALIM</span><p>Üç küçük adım. Size özel bir başlangıç.</p></div>
+  <ol class="brief-progress" aria-label="Proje formu adımları"><li aria-current="step"><span>01</span> Fikir</li><li><span>02</span> Plan</li><li><span>03</span> Tanışma</li></ol>
+  <fieldset class="brief-step" data-brief-step="0"><legend class="sr-only">1. adım: Projenizin fikri</legend><h3 tabindex="-1">Neyi birlikte üretelim?</h3>
+   <label for="service">İlgilendiğiniz alan <span aria-hidden="true">*</span></label><select id="service" name="service" required><option value="">Bir alan seçin</option value="production">Prodüksiyon / marka filmi</option><option value="drone">Drone / havadan çekim</option><option value="editing">Kurgu, renk & efekt</option><option value="digital">Web, sosyal medya & reklam</option><option value="mixed">Birden fazla alan / birlikte karar verelim</option></select>
+   <label for="goal">Projenin hedefi <span aria-hidden="true">*</span></label><input id="goal" name="goal" maxlength="400" placeholder="Örn. yeni mekânımızı tanıtmak, markamızın görünürlüğünü artırmak" required>
+   <label for="brief">Aklınızdaki proje <span aria-hidden="true">*</span></label><textarea id="brief" name="brief" rows="4" maxlength="2000" placeholder="Fikrinizi, ihtiyacınızı ve nasıl bir iş hayal ettiğinizi anlatın…" required></textarea>
+  </fieldset>
+  <fieldset class="brief-step" data-brief-step="1"><legend class="sr-only">2. adım: Projenizin planı</legend><h3 tabindex="-1">Detayları netleştirelim.</h3><p class="brief-step-note">Henüz belli olmayan alanları boş bırakabilirsiniz.</p>
+   <label for="location">Lokasyon <span class="optional">(isteğe bağlı)</span></label><input id="location" name="location" maxlength="160" placeholder="Çekim şehri, mekân veya uzaktan çalışma">
+   <label for="deadline">Hedef teslim tarihi <span class="optional">(isteğe bağlı)</span></label><input id="deadline" name="deadline" type="date">
+   <label for="budget-range">Düşündüğünüz bütçe aralığı</label><select id="budget-range" name="budgetRange"><option value="undecided">Birlikte belirleyelim</option><option value="under-10000">10.000 TL altı</option><option value="10000-25000">10.000 – 25.000 TL</option><option value="25000-50000">25.000 – 50.000 TL</option><option value="50000-plus">50.000 TL ve üzeri</option></select>
+   <label for="plan">İlgilendiğiniz çalışma planı</label><select id="plan" name="plan"><option>Birlikte karar verelim</option><option>Vitrin</option><option>Büyüme</option><option>Prestij</option><option>Tek seferlik proje</option></select>
+   <p class="brief-step-note">Bütçe aralığı teklif hazırlamamıza yardımcı olur; kesin fiyat veya ödeme taahhüdü oluşturmaz.</p>
+  </fieldset>
+  <fieldset class="brief-step" data-brief-step="2"><legend class="sr-only">3. adım: İletişim bilgileriniz</legend><h3 tabindex="-1">Şimdi tanışalım.</h3>
+   <label for="name">Adınız soyadınız <span aria-hidden="true">*</span></label><input id="name" name="name" placeholder="Size nasıl hitap edelim?" maxlength="100" required autocomplete="name">
+   <label for="brand">Markanız / proje adınız <span aria-hidden="true">*</span></label><input id="brand" name="brand" placeholder="Hangi marka için üretiyoruz?" maxlength="100" required autocomplete="organization">
+   <div class="form-row"><div><label for="email">E-posta adresiniz <span aria-hidden="true">*</span></label><input id="email" name="email" type="email" placeholder="ornek@markaniz.com" maxlength="254" required autocomplete="email"></div><div><label for="phone">Telefon <span class="optional">(isteğe bağlı)</span></label><input id="phone" name="phone" type="tel" placeholder="05xx xxx xx xx" maxlength="40" autocomplete="tel"></div></div>
+   <div class="consent-row"><input type="checkbox" id="consent" name="consent" required><label for="consent">İletişim bilgilerimin proje talebime dönüş yapılması amacıyla işlenmesine ilişkin <button type="button" class="privacy-link" data-privacy>aydınlatma metnini</button> okudum.</label></div>
+  </fieldset>
   <div class="form-honeypot" aria-hidden="true"><label for="website">Bu alanı boş bırakın</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
-  <div class="consent-row"><input type="checkbox" id="consent" name="consent" required><label for="consent">İletişim bilgilerimin proje talebime dönüş yapılması amacıyla işlenmesine ilişkin <button type="button" class="privacy-link" data-privacy>aydınlatma metnini</button> okudum.</label></div>
-  <button class="button accent" type="submit"><span class="submit-label">Projeyi konuşmaya başlayalım</span><span aria-hidden="true">↗</span></button>
+  <div class="brief-actions"><button class="button outline" type="button" id="brief-back" hidden><span aria-hidden="true">←</span> Geri</button><button class="button light" type="button" id="brief-next" hidden>Devam et <span aria-hidden="true">→</span></button><button class="button accent" type="submit"><span class="submit-label">Talebimi gönder</span><span aria-hidden="true">↗</span></button></div>
   <p class="form-note">Talebiniz doğrudan Ordvis ekibine ulaşır. Bu form bir satın alma veya ödeme işlemi başlatmaz.</p>
   <p id="form-status" role="status" aria-live="polite"></p><noscript><p>Talep göndermek için JavaScript’i etkinleştirin veya e-posta adresimizden bize ulaşın.</p></noscript>
  </form>
